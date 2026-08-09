@@ -115,8 +115,15 @@ const RACE_INI_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'cfg
 const TIMER_MARKER_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'cfg', 'timer_start.marker')
 
 // Opponent count for the AI grid — kiosk sessions are single-player-vs-AI,
-// not time-limited by laps (the kiosk's own timer kills acs.exe when the
-// paid time runs out), so LAPS is set high and just never gets reached.
+// not time-limited (the kiosk's own timer kills acs.exe when the paid time
+// runs out), so DURATION_MINUTES is set high and just never gets reached.
+//
+// SESSION_0 below uses TYPE=1 (Practice), not TYPE=3 (Race): a Race session's
+// starting-light countdown reliably hangs (TTS computed as Infinity) under
+// Wine/CrossOver, across every variant tried — grid or pit spawn, with or
+// without a preceding Qualify, any Windows-version compat setting. Practice
+// never hits that code path and still puts the AI cars on track. Needs
+// re-testing on the real Windows kiosk, which has no translation layer.
 const AI_OPPONENTS = 7
 
 function writeRaceIni({ model, skin, track, trackConfig, driftMode }) {
@@ -172,10 +179,10 @@ USE_MPH=0
 ALLOWED_TYRES_OUT=-1
 
 [SESSION_0]
-NAME=Race
-TYPE=3
-LAPS=999
-SPAWN_SET=START
+NAME=Practice
+TYPE=1
+DURATION_MINUTES=9999
+SPAWN_SET=PIT
 
 [CAR_0]
 SETUP=
