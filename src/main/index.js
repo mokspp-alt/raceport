@@ -109,7 +109,7 @@ ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, preset
 
     if (carId && trackId && presetName) {
       const cmPath = acExePath || CM_EXE_PATH
-      exec(`"${cmPath}" --start="${presetName}"`, () => {})
+      exec(`"${cmPath}" --start="${presetName}" --minimized`, () => {})
     } else {
       await shell.openExternal(`steam://rungameid/${steamAppId}`)
     }
