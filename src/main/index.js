@@ -102,6 +102,17 @@ app.on('window-all-closed', () => {
 // into a saved Quick Drive preset (named to match the game entry) with no menu.
 const CM_EXE_PATH = 'C:\\Users\\raceport1\\Desktop\\ac.exe'
 
+// CM's --start=preset loads the Quick Drive screen but still waits for a click
+// on "Поехали" — the kiosk has no mouse/keyboard, so we simulate that click at
+// a fixed screen position once the preset has had time to load.
+const DRIVE_BUTTON_X = 2675
+const DRIVE_BUTTON_Y = 1081
+
+function clickDriveButton() {
+  const scriptPath = path.join(__dirname, 'click.ps1')
+  exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" ${DRIVE_BUTTON_X} ${DRIVE_BUTTON_Y}`, () => {})
+}
+
 ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, presetName, acExePath, durationSeconds }) => {
   try {
     remainingSeconds = durationSeconds
@@ -109,7 +120,8 @@ ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, preset
 
     if (carId && trackId && presetName) {
       const cmPath = acExePath || CM_EXE_PATH
-      exec(`"${cmPath}" --start="${presetName}" --minimized`, () => {})
+      exec(`"${cmPath}" --start="${presetName}"`, () => {})
+      setTimeout(clickDriveButton, 3000)
     } else {
       await shell.openExternal(`steam://rungameid/${steamAppId}`)
     }
