@@ -109,6 +109,10 @@ app.on('window-all-closed', () => {
 // which needed simulated clicks since the kiosk has no mouse/keyboard.
 const AC_EXE_PATH = 'D:\\SteamLibrary\\steamapps\\common\\assettocorsa\\acs.exe'
 const RACE_INI_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'cfg', 'race.ini')
+// Written by the TimerTrigger CSP Lua app (ac-plugin/TimerTrigger) the instant
+// the player car's speed exceeds 0 — lets the timer start at the real moment
+// driving begins instead of a fixed delay after launch.
+const TIMER_MARKER_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'cfg', 'timer_start.marker')
 
 function writeRaceIni({ model, skin, track, trackConfig, driftMode }) {
   const ini = `[RACE]
@@ -193,6 +197,57 @@ SESSION_TRANSFER=100
   fs.writeFileSync(RACE_INI_PATH, ini)
 }
 
+// Ждём marker-файл от TimerTrigger (машина тронулась с места). Если плагин не
+// установлен или почему-то не сработал — стартуем по таймауту, чтобы кассовая
+// сессия не зависла молча.
+let cancelDriveWatch = null
+
+function watchForDriveStart(fallbackMs = 45000) {
+  let done = false
+  let watcher = null
+  let fallbackTimer = null
+
+  function trigger() {
+    if (done) return
+    done = true
+    if (watcher) watcher.close()
+    if (fallbackTimer) clearTimeout(fallbackTimer)
+    cancelDriveWatch = null
+    mainWindow?.hide()
+    createOverlay()
+    startTimer()
+  }
+
+  cancelDriveWatch = () => {
+    if (done) return
+    done = true
+    if (watcher) watcher.close()
+    if (fallbackTimer) clearTimeout(fallbackTimer)
+    cancelDriveWatch = null
+  }
+
+  const markerDir = path.dirname(TIMER_MARKER_PATH)
+  fs.mkdirSync(markerDir, { recursive: true })
+
+  try {
+    if (fs.existsSync(TIMER_MARKER_PATH)) fs.unlinkSync(TIMER_MARKER_PATH)
+  } catch (err) {
+    console.error('Failed to clear timer marker:', err)
+  }
+
+  try {
+    watcher = fs.watch(markerDir, (eventType, filename) => {
+      if (filename === path.basename(TIMER_MARKER_PATH) && fs.existsSync(TIMER_MARKER_PATH)) {
+        trigger()
+      }
+    })
+  } catch (err) {
+    console.error('Failed to watch for timer marker:', err)
+  }
+
+  fallbackTimer = setTimeout(trigger, fallbackMs)
+}
+
 ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackConfig, skin, driftMode, acExePath, durationSeconds }) => {
   try {
     remainingSeconds = durationSeconds
@@ -208,12 +263,7 @@ ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackC
       await shell.openExternal(`steam://rungameid/${steamAppId}`)
     }
 
-    // Скрыть главное окно, показать оверлей поверх игры
-    setTimeout(() => {
-      mainWindow?.hide()
-      createOverlay()
-      startTimer()
-    }, 8000)
+    watchForDriveStart()
 
     return { success: true }
   } catch (err) {
@@ -264,6 +314,8 @@ function startTimer() {
 }
 
 function stopGame() {
+  if (cancelDriveWatch) cancelDriveWatch()
+
   if (timerInterval) {
     clearInterval(timerInterval)
     timerInterval = null
