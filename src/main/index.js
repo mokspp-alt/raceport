@@ -114,17 +114,36 @@ const RACE_INI_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'cfg
 // driving begins instead of a fixed delay after launch.
 const TIMER_MARKER_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'cfg', 'timer_start.marker')
 
+// Opponent count for the AI grid — kiosk sessions are single-player-vs-AI,
+// not time-limited by laps (the kiosk's own timer kills acs.exe when the
+// paid time runs out), so LAPS is set high and just never gets reached.
+const AI_OPPONENTS = 7
+
 function writeRaceIni({ model, skin, track, trackConfig, driftMode }) {
+  let opponents = ''
+  for (let i = 1; i <= AI_OPPONENTS; i++) {
+    opponents += `
+[CAR_${i}]
+MODEL=${model}
+SKIN=
+MODEL_CONFIG=
+BALLAST=0
+RESTRICTOR=0
+AI_LEVEL=90
+AI_AGGRESSION=50
+`
+  }
+
   const ini = `[RACE]
 MODEL=${model}
 SKIN=${skin || ''}
 TRACK=${track}
 CONFIG_TRACK=${trackConfig || ''}
-AI_LEVEL=95
-CARS=1
+AI_LEVEL=90
+CARS=${AI_OPPONENTS + 1}
 DRIFT_MODE=${driftMode || 0}
 FIXED_SETUP=0
-SOLO_RACE=1
+SOLO_RACE=0
 RECORD_INPUTS=0
 TELEPORT_CAR=0
 MODEL_CONFIG=
@@ -152,6 +171,12 @@ USE_MPH=0
 [LAP_INVALIDATOR]
 ALLOWED_TYRES_OUT=-1
 
+[SESSION_0]
+NAME=Race
+TYPE=3
+LAPS=999
+SPAWN_SET=START
+
 [CAR_0]
 SETUP=
 SKIN=${skin || ''}
@@ -162,7 +187,7 @@ RESTRICTOR=0
 DRIVER_NAME=RP1
 NATIONALITY=Russia
 NATION_CODE=RUS
-
+${opponents}
 [GHOST_CAR]
 RECORDING=0
 PLAYING=0
