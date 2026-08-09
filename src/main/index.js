@@ -194,7 +194,10 @@ ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackC
 
     if (carId && trackId) {
       writeRaceIni({ model: carId, skin, track: trackId, trackConfig, driftMode })
-      exec(`"${acExePath || AC_EXE_PATH}"`, () => {})
+      const exePath = acExePath || AC_EXE_PATH
+      exec(`"${exePath}"`, { cwd: path.dirname(exePath) }, (err, stdout, stderr) => {
+        if (err) console.error('acs.exe launch failed:', err, stderr)
+      })
     } else {
       await shell.openExternal(`steam://rungameid/${steamAppId}`)
     }
