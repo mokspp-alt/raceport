@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell, globalShortcut, screen } = require('electron')
 const path = require('path')
+const fs = require('fs')
+const os = require('os')
 const { exec } = require('child_process')
 const db = require('./db')
 
@@ -96,32 +98,103 @@ app.on('window-all-closed', () => {
 
 // ─── Game management ──────────────────────────────────────────────────────────
 
-// Content Manager, not acs.exe directly — a bare acs.exe launch fails Steam's
-// DRM check unless steam_appid.txt is present, and still shows AC's own menu.
-// CM handles both: it launches through Steam properly and can jump straight
-// into a saved Quick Drive preset (named to match the game entry) with no menu.
-const CM_EXE_PATH = 'C:\\Users\\raceport1\\Desktop\\ac.exe'
+// acs.exe reads Documents\Assetto Corsa\cfg\race.ini on launch and jumps straight
+// into that session — no menu, no clicks. Requires steam_appid.txt (containing
+// 244210) next to acs.exe so Steam's DRM check passes without going through
+// the Steam client. This replaces the old Content Manager --start=preset flow,
+// which needed simulated clicks since the kiosk has no mouse/keyboard.
+const AC_EXE_PATH = 'D:\\SteamLibrary\\steamapps\\common\\assettocorsa\\acs.exe'
+const RACE_INI_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'cfg', 'race.ini')
 
-// CM's --start=preset loads the Quick Drive screen but still waits for a click
-// on "Поехали" — the kiosk has no mouse/keyboard, so we simulate that click at
-// a fixed screen position once the preset has had time to load.
-const DRIVE_BUTTON_X = 2675
-const DRIVE_BUTTON_Y = 1081
+function writeRaceIni({ model, skin, track, trackConfig, driftMode }) {
+  const ini = `[RACE]
+MODEL=${model}
+SKIN=${skin || ''}
+TRACK=${track}
+CONFIG_TRACK=${trackConfig || ''}
+AI_LEVEL=95
+CARS=1
+DRIFT_MODE=${driftMode || 0}
+FIXED_SETUP=0
+SOLO_RACE=1
+RECORD_INPUTS=0
+TELEPORT_CAR=0
+MODEL_CONFIG=
+PENALTIES=1
+JUMP_START_PENALTY=0
 
-function clickDriveButton() {
-  const scriptPath = path.join(__dirname, 'click.ps1')
-  exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" ${DRIVE_BUTTON_X} ${DRIVE_BUTTON_Y}`, () => {})
+[HEADER]
+VERSION=2
+
+[BENCHMARK]
+ACTIVE=1
+
+[REPLAY]
+ACTIVE=0
+
+[REMOTE]
+ACTIVE=0
+
+[RESTART]
+ACTIVE=0
+
+[OPTIONS]
+USE_MPH=0
+
+[LAP_INVALIDATOR]
+ALLOWED_TYRES_OUT=-1
+
+[CAR_0]
+SKIN=${skin || ''}
+MODEL_CONFIG=
+BALLAST=0
+RESTRICTOR=0
+DRIVER_NAME=RP1
+NATIONALITY=Russia
+NATION_CODE=RUS
+
+[GHOST_CAR]
+RECORDING=0
+PLAYING=0
+LOAD=0
+FILE=
+ENABLED=0
+
+[GROOVE]
+VIRTUAL_LAPS=10
+MAX_LAPS=30
+STARTING_LAPS=0
+
+[TEMPERATURE]
+AMBIENT=26
+ROAD=35
+
+[WEATHER]
+NAME=sol_01_clear
+
+[WIND]
+SPEED_KMH_MIN=0
+SPEED_KMH_MAX=0
+DIRECTION_DEG=11
+
+[DYNAMIC_TRACK]
+SESSION_START=100
+RANDOMNESS=0
+LAP_GAIN=1
+SESSION_TRANSFER=100
+`
+  fs.mkdirSync(path.dirname(RACE_INI_PATH), { recursive: true })
+  fs.writeFileSync(RACE_INI_PATH, ini)
 }
 
-ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, presetName, acExePath, durationSeconds }) => {
+ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackConfig, skin, driftMode, acExePath, durationSeconds }) => {
   try {
     remainingSeconds = durationSeconds
     warningShown = false
 
-    if (carId && trackId && presetName) {
-      const cmPath = acExePath || CM_EXE_PATH
-      exec(`"${cmPath}" --start="${presetName}"`, () => {})
-      setTimeout(clickDriveButton, 3000)
+    if (carId && trackId) {
+      writeRaceIni({ model: carId, skin, track: trackId, trackConfig, driftMode })
+      exec(`"${acExePath || AC_EXE_PATH}"`, () => {})
     } else {
       await shell.openExternal(`steam://rungameid/${steamAppId}`)
     }
