@@ -4,13 +4,15 @@ const store = new Store({
   name: 'kiosk-data',
   defaults: {
     games: [
-      { id: 1, name: 'Шашки', steam_app_id: '244210', car_id: 'bmw_z4_s1', track_id: 'shuto_revival_project_beta', track_config: '', ac_exe_path: '', price_per_hour: 150, emoji: '🏁', image_url: '', color: '#1a1a2a', active: 1, display_order: 1 },
-      { id: 2, name: 'Дрифт', steam_app_id: '244210', car_id: 'bmw_m3_e92_drift', track_id: 'shuto_revival_project_beta', track_config: '', ac_exe_path: '', price_per_hour: 150, emoji: '💨', image_url: '', color: '#1a1a2a', active: 1, display_order: 2 },
-      { id: 3, name: 'F1', steam_app_id: '244210', car_id: 'f1_2020_mercedes', track_id: 'monza', track_config: '', ac_exe_path: '', price_per_hour: 150, emoji: '🏎️', image_url: '', color: '#c0392b', active: 1, display_order: 3 },
+      { id: 1, name: 'drift',       steam_app_id: '244210', car_id: 'bmw_m3_e92_drift',    track_id: 'shuto_revival_project_beta', track_config: '', ac_exe_path: '', price_per_hour: 150, emoji: '💨', image_url: '', color: '#1a1a2a', active: 1, display_order: 1 },
+      { id: 2, name: 'shashki',     steam_app_id: '244210', car_id: 'bmw_z4_s1',           track_id: 'shuto_revival_project_beta', track_config: '', ac_exe_path: '', price_per_hour: 150, emoji: '🏁', image_url: '', color: '#1a1a2a', active: 1, display_order: 2 },
+      { id: 3, name: 'nurburgring', steam_app_id: '244210', car_id: 'bmw_m4_akrapovic',    track_id: 'ks_nordschleife',           track_config: '', ac_exe_path: '', price_per_hour: 200, emoji: '🏔️', image_url: '', color: '#1a2a1a', active: 1, display_order: 3 },
+      { id: 4, name: 'gt3',         steam_app_id: '244210', car_id: 'ks_porsche_911_gt3_r', track_id: 'ks_barcelona',             track_config: '', ac_exe_path: '', price_per_hour: 200, emoji: '🏆', image_url: '', color: '#2a1a0a', active: 1, display_order: 4 },
+      { id: 5, name: 'f1',          steam_app_id: '244210', car_id: 'rss_formula_hybrid_2020', track_id: 'monza',                 track_config: '', ac_exe_path: '', price_per_hour: 250, emoji: '🏎️', image_url: '', color: '#c0392b', active: 1, display_order: 5 },
     ],
     sessions: [],
     transactions: [],
-    _nextId: { games: 4, sessions: 1, transactions: 1 },
+    _nextId: { games: 6, sessions: 1, transactions: 1 },
   },
 })
 

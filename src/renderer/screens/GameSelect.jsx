@@ -134,7 +134,9 @@ function LoadingScreen() {
 }
 
 const DEMO_GAMES = [
-  { id: 1, name: 'Шашки', steam_app_id: '244210', car_id: 'bmw_z4_s1', track_id: 'shuto_revival_project_beta', price_per_hour: 150, emoji: '🏁', color: '#1a1a2a' },
-  { id: 2, name: 'Дрифт', steam_app_id: '244210', car_id: 'bmw_m3_e92_drift', track_id: 'shuto_revival_project_beta', price_per_hour: 150, emoji: '💨', color: '#1a1a2a' },
-  { id: 3, name: 'F1', steam_app_id: '244210', car_id: 'f1_2020_mercedes', track_id: 'monza', price_per_hour: 150, emoji: '🏎️', color: '#c0392b' },
+  { id: 1, name: 'drift',       steam_app_id: '244210', car_id: 'bmw_m3_e92_drift',     track_id: 'shuto_revival_project_beta', price_per_hour: 150, emoji: '💨', color: '#1a1a2a' },
+  { id: 2, name: 'shashki',     steam_app_id: '244210', car_id: 'bmw_z4_s1',            track_id: 'shuto_revival_project_beta', price_per_hour: 150, emoji: '🏁', color: '#1a1a2a' },
+  { id: 3, name: 'nurburgring', steam_app_id: '244210', car_id: 'bmw_m4_akrapovic',     track_id: 'ks_nordschleife',           price_per_hour: 200, emoji: '🏔️', color: '#1a2a1a' },
+  { id: 4, name: 'gt3',         steam_app_id: '244210', car_id: 'ks_porsche_911_gt3_r', track_id: 'ks_barcelona',             price_per_hour: 200, emoji: '🏆', color: '#2a1a0a' },
+  { id: 5, name: 'f1',          steam_app_id: '244210', car_id: 'rss_formula_hybrid_2020', track_id: 'monza',                 price_per_hour: 250, emoji: '🏎️', color: '#c0392b' },
 ]
