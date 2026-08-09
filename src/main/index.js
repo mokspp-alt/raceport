@@ -1,8 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell, globalShortcut, screen } = require('electron')
 const path = require('path')
 const { exec } = require('child_process')
-const fs = require('fs')
-const os = require('os')
 const db = require('./db')
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -98,16 +96,20 @@ app.on('window-all-closed', () => {
 
 // ─── Game management ──────────────────────────────────────────────────────────
 
-ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackConfig, acExePath, durationSeconds }) => {
+// Content Manager, not acs.exe directly — a bare acs.exe launch fails Steam's
+// DRM check unless steam_appid.txt is present, and still shows AC's own menu.
+// CM handles both: it launches through Steam properly and can jump straight
+// into a saved Quick Drive preset (named to match the game entry) with no menu.
+const CM_EXE_PATH = 'C:\\Users\\raceport1\\Desktop\\ac.exe'
+
+ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, presetName, acExePath, durationSeconds }) => {
   try {
     remainingSeconds = durationSeconds
     warningShown = false
 
-    if (carId && trackId) {
-      // Прямой запуск AC: записываем race.ini и entry.ini, потом запускаем acs.exe
-      writeAcRaceConfig({ carId, trackId, trackConfig: trackConfig || '' })
-      const exePath = acExePath || 'D:\\SteamLibrary\\steamapps\\common\\assettocorsa\\acs.exe'
-      exec(`"${exePath}"`, () => {})
+    if (carId && trackId && presetName) {
+      const cmPath = acExePath || CM_EXE_PATH
+      exec(`"${cmPath}" --start="${presetName}"`, () => {})
     } else {
       await shell.openExternal(`steam://rungameid/${steamAppId}`)
     }
@@ -124,45 +126,6 @@ ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackC
     return { success: false, error: err.message }
   }
 })
-
-function writeAcRaceConfig({ carId, trackId, trackConfig }) {
-  const docsPath = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'cfg')
-
-  try { fs.mkdirSync(docsPath, { recursive: true }) } catch (_) {}
-
-  const raceIni = `[RACE]
-MODEL=${carId}
-SKIN=racing_1
-TRACK=${trackId}
-CONFIG_TRACK=${trackConfig}
-AI_LEVEL=95
-CARS=1
-DRIFT_MODE=0
-FIXED_SETUP=0
-SOLO_RACE=1
-RECORD_INPUTS=0
-TELEPORT_CAR=0
-
-[SESSION_0]
-NAME=Free Practice
-TYPE=1
-DURATION_MINUTES=9999
-SPAWN_SET=PIT_FAST
-`
-
-  const entryIni = `[CAR_0]
-MODEL=${carId}
-SKIN=racing_1
-DRIVER_NAME=Driver
-TEAM=
-GUID=
-BALLAST=0
-RESTRICTOR=0
-`
-
-  fs.writeFileSync(path.join(docsPath, 'race.ini'), raceIni)
-  fs.writeFileSync(path.join(docsPath, 'entry.ini'), entryIni)
-}
 
 ipcMain.handle('add-time', async (event, { additionalSeconds }) => {
   remainingSeconds += additionalSeconds

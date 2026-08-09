@@ -77,7 +77,7 @@ export default function Payment({ game, minutes, onSuccess, onBack }) {
           steamAppId: game?.steam_app_id,
           carId: game?.car_id,
           trackId: game?.track_id,
-          trackConfig: game?.track_config,
+          presetName: game?.name,
           acExePath: game?.ac_exe_path,
           durationSeconds: minutes * 60,
         }).then(() => onSuccess(session))
