@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: transparent; overflow: hidden; user-select: none; }
+
+  #timer {
+    font-family: 'Segoe UI', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    background: rgba(0, 0, 0, 0.72);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    backdrop-filter: blur(4px);
+    transition: border-color 0.3s, color 0.3s;
+    width: fit-content;
+  }
+
+  #timer.warning {
+    border-color: #e63946;
+    color: #ff6b74;
+    animation: pulse 1s ease infinite;
+  }
+
+  #timer.critical {
+    border-color: #ff0000;
+    color: #ff3333;
+    animation: pulse 0.5s ease infinite;
+  }
+
+  .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #4caf50;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  #timer.warning .dot { background: #e63946; }
+  #timer.critical .dot { background: #ff0000; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+</style>
+</head>
+<body>
+  <div id="timer">
+    <div class="dot"></div>
+    <span id="time">--:--</span>
+  </div>
+
+  <script>
+    function fmt(s) {
+      const h = Math.floor(s / 3600)
+      const m = Math.floor((s % 3600) / 60)
+      const sec = s % 60
+      if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+      return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+    }
+
+    window.kiosk?.on('timer-tick', ({ remaining }) => {
+      document.getElementById('time').textContent = fmt(remaining)
+      const el = document.getElementById('timer')
+      el.className = remaining <= 60 ? 'critical' : remaining <= 300 ? 'warning' : ''
+    })
+
+    window.kiosk?.on('timer-expired', () => {
+      document.getElementById('time').textContent = '00:00'
+      document.getElementById('timer').className = 'critical'
+    })
+  </script>
+</body>
+</html>
