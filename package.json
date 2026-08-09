@@ -1,7 +1,7 @@
 {
-  "name": "gaming-kiosk",
+  "name": "raceport",
   "version": "1.0.0",
-  "description": "Gaming kiosk with YooKassa payment and Steam game launcher",
+  "description": "Raceport gaming kiosk with YooKassa payment and Assetto Corsa launcher",
   "main": "src/main/index.js",
   "scripts": {
     "dev": "concurrently \"vite --config vite.config.js\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
@@ -27,8 +27,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.kiosk.gaming",
-    "productName": "Gaming Kiosk",
+    "appId": "com.raceport.app",
+    "productName": "Raceport",
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico"
