@@ -72,6 +72,10 @@ function createOverlay() {
 
   overlayWindow.loadFile(path.join(__dirname, 'overlay.html'))
   overlayWindow.setIgnoreMouseEvents(true)
+  // Default alwaysOnTop level sits below AC's DirectX-rendered window even in
+  // windowed mode — 'screen-saver' is the highest level Electron exposes and
+  // is the only one that reliably draws over the game.
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver')
   overlayWindow.on('closed', () => { overlayWindow = null })
 }
 
