@@ -90,11 +90,9 @@ function closeOverlay() {
 app.whenReady().then(() => {
   createWindow()
 
-  if (!isDev) {
-    globalShortcut.register('CommandOrControl+Shift+A', () => {
-      mainWindow?.webContents.send('open-admin')
-    })
-  }
+  globalShortcut.register('CommandOrControl+Shift+A', () => {
+    mainWindow?.webContents.send('open-admin')
+  })
 })
 
 app.on('window-all-closed', () => {
