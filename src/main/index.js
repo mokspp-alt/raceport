@@ -580,10 +580,12 @@ if ($proc) {
 
   exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`, (err, stdout, stderr) => {
     if (err) console.error('Drive-button key-nav failed:', err, stderr)
-    // Runs after the click attempt, not in parallel with it — safe now that
-    // watchForLoadComplete always eventually calls back (marker or its own
-    // fallback), so this is no longer at risk of never firing at all.
-    watchForDriveStart()
+    // Paid time starts the instant the wheel icon is clicked, not whenever
+    // (or if) the TimerTrigger plugin later detects actual car movement —
+    // that lags well behind the click and made the timer feel like it was
+    // starting very late once the click itself became reliable.
+    createOverlay()
+    startTimer()
   })
 }
 
