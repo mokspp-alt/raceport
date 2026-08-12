@@ -333,8 +333,17 @@ function clickDriveButton() {
   // keyboard state directly instead of the message queue, which keybd_event
   // never touches. SendInput is the modern injection API and is far more
   // widely recognized by that kind of raw polling.
+  //
+  // Both AppActivate and SendInput can silently no-op instead of throwing:
+  // AppActivate does nothing if the PID/window isn't found or if a UAC
+  // prompt/security desktop is in the way, and SendInput's return value
+  // (events actually accepted, out of the 2 sent per key) drops to 0 under
+  // UIPI when the target process runs at a different privilege level than
+  // this script — "no exception" was never proof either one worked. Every
+  // check below writes a fact to the log instead of assuming success.
   const script = `Add-Type -TypeDefinition @"
 using System;
+using System.Text;
 using System.Runtime.InteropServices;
 
 [StructLayout(LayoutKind.Sequential)]
@@ -364,46 +373,86 @@ public class RPInput {
   [DllImport("user32.dll", SetLastError = true)]
   public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
-  public static void SendKey(ushort vk) {
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+
+  [DllImport("user32.dll", CharSet = CharSet.Auto)]
+  public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
+  [DllImport("user32.dll")]
+  public static extern bool IsIconic(IntPtr hWnd);
+
+  [DllImport("user32.dll")]
+  public static extern bool IsWindowVisible(IntPtr hWnd);
+
+  // Returns how many of the 2 injected events (key down + key up) SendInput
+  // actually accepted — 0 means the OS silently dropped the input.
+  public static uint SendKey(ushort vk) {
     int size = Marshal.SizeOf(typeof(INPUT));
     INPUT down = new INPUT();
     down.type = INPUT_KEYBOARD;
     down.U.ki.wVk = vk;
-    SendInput(1, new INPUT[] { down }, size);
+    uint sentDown = SendInput(1, new INPUT[] { down }, size);
 
     INPUT up = new INPUT();
     up.type = INPUT_KEYBOARD;
     up.U.ki.wVk = vk;
     up.U.ki.dwFlags = KEYEVENTF_KEYUP;
-    SendInput(1, new INPUT[] { up }, size);
+    uint sentUp = SendInput(1, new INPUT[] { up }, size);
+
+    return sentDown + sentUp;
+  }
+
+  public static string WindowTitle(IntPtr hWnd) {
+    var sb = new StringBuilder(256);
+    GetWindowText(hWnd, sb, sb.Capacity);
+    return sb.ToString();
   }
 }
 "@
 Add-Type -AssemblyName Microsoft.VisualBasic
 $logPath = "${CLICK_LOG_PATH.replace(/\\/g, '\\\\')}"
-"[$(Get-Date -Format o)] clickDriveButton script starting" | Out-File -Append $logPath
+function Log($msg) { "[$(Get-Date -Format o)] $msg" | Out-File -Append $logPath }
 
-$proc = Get-Process -Name "acs" -ErrorAction SilentlyContinue | Select-Object -First 1
+Log "clickDriveButton script starting"
+
+$procs = Get-Process -Name "acs" -ErrorAction SilentlyContinue
+Log "found $($procs.Count) acs.exe process(es): pid(s)=$($procs.Id -join ',')"
+# More than one means a stale process from a previous session never got
+# killed — AppActivate below might grab the wrong one.
+
+$proc = $procs | Select-Object -First 1
 if ($proc) {
+  Log "target pid=$($proc.Id) MainWindowHandle=$($proc.MainWindowHandle) MainWindowTitle='$($proc.MainWindowTitle)'"
+
+  $beforeFg = [RPInput]::GetForegroundWindow()
+  Log "foreground before AppActivate: handle=$beforeFg title='$([RPInput]::WindowTitle($beforeFg))'"
+
   try {
     [Microsoft.VisualBasic.Interaction]::AppActivate($proc.Id)
-    "[$(Get-Date -Format o)] found acs.exe pid=$($proc.Id), AppActivate called" | Out-File -Append $logPath
+    Log "AppActivate called, no exception"
   } catch {
-    "[$(Get-Date -Format o)] AppActivate threw: $_" | Out-File -Append $logPath
+    Log "AppActivate threw: $_"
   }
   Start-Sleep -Milliseconds 300
+
+  $afterFg = [RPInput]::GetForegroundWindow()
+  $matched = ($afterFg -eq $proc.MainWindowHandle)
+  Log "foreground after AppActivate: handle=$afterFg title='$([RPInput]::WindowTitle($afterFg))' matchesTarget=$matched"
+  Log "target window visible=$([RPInput]::IsWindowVisible($proc.MainWindowHandle)) minimized=$([RPInput]::IsIconic($proc.MainWindowHandle))"
 
   $VK_UP = 0x26
   $VK_RETURN = 0x0D
 
-  [RPInput]::SendKey($VK_UP)
+  $sentUp = [RPInput]::SendKey($VK_UP)
+  Log "sent VK_UP, SendInput accepted $sentUp/2 events"
   Start-Sleep -Milliseconds 200
-  [RPInput]::SendKey($VK_RETURN)
-  "[$(Get-Date -Format o)] sent Up+Enter via SendInput" | Out-File -Append $logPath
+  $sentEnter = [RPInput]::SendKey($VK_RETURN)
+  Log "sent VK_RETURN, SendInput accepted $sentEnter/2 events"
 } else {
   # Previously sent the keys blind even when acs.exe wasn't found — pointless,
   # since there's nothing to receive them.
-  "[$(Get-Date -Format o)] acs.exe process not found, skipping key send" | Out-File -Append $logPath
+  Log "acs.exe process not found, skipping key send"
 }
 `
   const scriptPath = path.join(os.tmpdir(), 'raceport-click.ps1')
