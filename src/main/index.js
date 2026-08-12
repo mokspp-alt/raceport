@@ -368,12 +368,15 @@ Start-Sleep -Milliseconds 200
 
 // Watches acs.exe's log for LOAD_COMPLETE_MARKER instead of guessing a fixed
 // delay. Only looks at bytes written after this watch started, since log.txt
-// accumulates across every session the kiosk runs, not just this one. No
-// blind fallback: if the marker never shows up, the click just never fires
-// rather than firing at a guessed moment.
-function watchForLoadComplete(callback) {
+// accumulates across every session the kiosk runs, not just this one.
+// LOAD_COMPLETE_MARKER hasn't been confirmed to actually appear in log.txt
+// on the real kiosk (still needs checking directly) — without the fallback
+// below, the click just silently never fires if it doesn't, so it's back
+// for now even though it means clicking at a guessed moment in that case.
+function watchForLoadComplete(callback, fallbackMs = 180000) {
   let done = false
   let watcher = null
+  let fallbackTimer = null
   let startOffset = 0
 
   try {
@@ -386,6 +389,7 @@ function watchForLoadComplete(callback) {
     if (done) return
     done = true
     if (watcher) watcher.close()
+    if (fallbackTimer) clearTimeout(fallbackTimer)
     callback()
   }
 
@@ -418,6 +422,8 @@ function watchForLoadComplete(callback) {
   } catch (err) {
     console.error('Failed to watch AC log for load-complete marker:', err)
   }
+
+  fallbackTimer = setTimeout(finish, fallbackMs)
 }
 
 ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackConfig, skin, driftMode, acExePath, durationSeconds }) => {
