@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'HeadingNow';
+  src: url('../assets/fonts/HeadingNow-54Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg: #0a0a0f;
   --bg2: #12121a;
@@ -11,7 +19,7 @@
   --selected-glow: 0 0 30px rgba(230, 57, 70, 0.6);
   --radius: 16px;
   --font-main: 'Rajdhani', sans-serif;
-  --font-display: 'Orbitron', sans-serif;
+  --font-display: 'HeadingNow', 'Orbitron', sans-serif;
 }
 
 * {
@@ -76,18 +84,18 @@ body {
   text-transform: uppercase;
   padding: 1rem 2.5rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 200px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-primary {
-  background: var(--accent);
-  color: white;
+  background: #ffe100;
+  color: black;
 }
 
 .btn-primary.selected {
-  box-shadow: var(--selected-glow);
+  box-shadow: 0 0 30px rgba(255, 225, 0, 0.6);
   transform: scale(1.04);
 }
 
