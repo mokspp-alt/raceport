@@ -323,11 +323,56 @@ const CLICK_LOG_PATH = path.join(os.tmpdir(), 'raceport-click.log')
 function clickDriveButton() {
   mainWindow?.hide()
 
+  // keybd_event injects at the Windows message-queue level (WM_KEYDOWN);
+  // logs showed AppActivate succeeding and keys being sent on every attempt,
+  // yet the game never reacted — games commonly poll DirectInput/raw
+  // keyboard state directly instead of the message queue, which keybd_event
+  // never touches. SendInput is the modern injection API and is far more
+  // widely recognized by that kind of raw polling.
   const script = `Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
-public class RPKeys {
-  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+
+[StructLayout(LayoutKind.Sequential)]
+public struct KEYBDINPUT {
+  public ushort wVk;
+  public ushort wScan;
+  public uint dwFlags;
+  public uint time;
+  public IntPtr dwExtraInfo;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct InputUnion {
+  [FieldOffset(0)] public KEYBDINPUT ki;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct INPUT {
+  public uint type;
+  public InputUnion U;
+}
+
+public class RPInput {
+  public const uint INPUT_KEYBOARD = 1;
+  public const uint KEYEVENTF_KEYUP = 0x0002;
+
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+  public static void SendKey(ushort vk) {
+    int size = Marshal.SizeOf(typeof(INPUT));
+    INPUT down = new INPUT();
+    down.type = INPUT_KEYBOARD;
+    down.U.ki.wVk = vk;
+    SendInput(1, new INPUT[] { down }, size);
+
+    INPUT up = new INPUT();
+    up.type = INPUT_KEYBOARD;
+    up.U.ki.wVk = vk;
+    up.U.ki.dwFlags = KEYEVENTF_KEYUP;
+    SendInput(1, new INPUT[] { up }, size);
+  }
 }
 "@
 Add-Type -AssemblyName Microsoft.VisualBasic
@@ -342,21 +387,20 @@ if ($proc) {
   } catch {
     "[$(Get-Date -Format o)] AppActivate threw: $_" | Out-File -Append $logPath
   }
+  Start-Sleep -Milliseconds 300
+
+  $VK_UP = 0x26
+  $VK_RETURN = 0x0D
+
+  [RPInput]::SendKey($VK_UP)
+  Start-Sleep -Milliseconds 200
+  [RPInput]::SendKey($VK_RETURN)
+  "[$(Get-Date -Format o)] sent Up+Enter via SendInput" | Out-File -Append $logPath
 } else {
-  "[$(Get-Date -Format o)] acs.exe process not found" | Out-File -Append $logPath
+  # Previously sent the keys blind even when acs.exe wasn't found — pointless,
+  # since there's nothing to receive them.
+  "[$(Get-Date -Format o)] acs.exe process not found, skipping key send" | Out-File -Append $logPath
 }
-Start-Sleep -Milliseconds 300
-
-$VK_UP = 0x26
-$VK_RETURN = 0x0D
-$KEYEVENTF_KEYUP = 0x0002
-
-[RPKeys]::keybd_event($VK_UP, 0, 0, [UIntPtr]::Zero)
-[RPKeys]::keybd_event($VK_UP, 0, $KEYEVENTF_KEYUP, [UIntPtr]::Zero)
-Start-Sleep -Milliseconds 200
-[RPKeys]::keybd_event($VK_RETURN, 0, 0, [UIntPtr]::Zero)
-[RPKeys]::keybd_event($VK_RETURN, 0, $KEYEVENTF_KEYUP, [UIntPtr]::Zero)
-"[$(Get-Date -Format o)] sent Up+Enter" | Out-File -Append $logPath
 `
   const scriptPath = path.join(os.tmpdir(), 'raceport-click.ps1')
   fs.writeFileSync(scriptPath, script)
