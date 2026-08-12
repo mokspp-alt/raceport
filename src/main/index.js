@@ -385,6 +385,64 @@ public class RPInput {
   [DllImport("user32.dll")]
   public static extern bool IsWindowVisible(IntPtr hWnd);
 
+  [DllImport("kernel32.dll", SetLastError = true)]
+  public static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
+
+  [DllImport("advapi32.dll", SetLastError = true)]
+  public static extern bool OpenProcessToken(IntPtr proc, uint access, out IntPtr token);
+
+  [DllImport("advapi32.dll", SetLastError = true)]
+  public static extern bool GetTokenInformation(IntPtr token, int cls, IntPtr info, int infoLen, out int retLen);
+
+  [DllImport("kernel32.dll")]
+  public static extern bool CloseHandle(IntPtr h);
+
+  // A SendInput return of 0 is consistent with UIPI silently blocking the
+  // injection because the target runs at a different (usually higher)
+  // Windows integrity level than this script — reads each process's actual
+  // mandatory-label SID (the standard way to answer that) instead of
+  // leaving it as a guess.
+  public static string IntegrityLevelOf(int pid) {
+    const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    const uint TOKEN_QUERY = 0x0008;
+    const int TokenIntegrityLevel = 25;
+
+    IntPtr hProc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+    if (hProc == IntPtr.Zero) return "OpenProcess failed, error=" + Marshal.GetLastWin32Error();
+
+    IntPtr hToken;
+    bool gotToken = OpenProcessToken(hProc, TOKEN_QUERY, out hToken);
+    CloseHandle(hProc);
+    if (!gotToken) return "OpenProcessToken failed, error=" + Marshal.GetLastWin32Error();
+
+    int len = 0;
+    GetTokenInformation(hToken, TokenIntegrityLevel, IntPtr.Zero, 0, out len);
+    IntPtr buf = Marshal.AllocHGlobal(len);
+    string result;
+    try {
+      if (!GetTokenInformation(hToken, TokenIntegrityLevel, buf, len, out len)) {
+        result = "GetTokenInformation failed, error=" + Marshal.GetLastWin32Error();
+      } else {
+        IntPtr sid = Marshal.ReadIntPtr(buf); // TOKEN_MANDATORY_LABEL.Label.Sid is the struct's first field
+        byte subAuthCount = Marshal.ReadByte(IntPtr.Add(sid, 1));
+        int rid = Marshal.ReadInt32(IntPtr.Add(sid, 8 + 4 * (subAuthCount - 1)));
+        result = DescribeIntegrity(rid);
+      }
+    } finally {
+      Marshal.FreeHGlobal(buf);
+      CloseHandle(hToken);
+    }
+    return result;
+  }
+
+  public static string DescribeIntegrity(int rid) {
+    if (rid < 0x1000) return "Untrusted (0x" + rid.ToString("X") + ")";
+    if (rid < 0x2000) return "Low (0x" + rid.ToString("X") + ")";
+    if (rid < 0x3000) return "Medium (0x" + rid.ToString("X") + ")";
+    if (rid < 0x4000) return "High/Elevated (0x" + rid.ToString("X") + ")";
+    return "System (0x" + rid.ToString("X") + ")";
+  }
+
   // Returns how many of the 2 injected events (key down + key up) SendInput
   // actually accepted — 0 means the OS silently dropped the input.
   public static uint SendKey(ushort vk) {
@@ -412,7 +470,15 @@ public class RPInput {
 "@
 Add-Type -AssemblyName Microsoft.VisualBasic
 $logPath = "${CLICK_LOG_PATH.replace(/\\/g, '\\\\')}"
-function Log($msg) { "[$(Get-Date -Format o)] $msg" | Out-File -Append $logPath }
+# Out-File defaults to UTF-16LE in Windows PowerShell 5.1; Node's
+# fs.appendFileSync (used elsewhere for this same file) writes UTF-8.
+# Mixing the two in one file corrupts it into unreadable mojibake for
+# anything that isn't the exact byte pattern that wrote it. Write
+# BOM-less UTF-8 explicitly to match Node's default exactly.
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+function Log($msg) {
+  [System.IO.File]::AppendAllText($logPath, "[$(Get-Date -Format o)] $msg\`r\`n", $utf8NoBom)
+}
 
 Log "clickDriveButton script starting"
 
@@ -440,6 +506,8 @@ if ($proc) {
   $matched = ($afterFg -eq $proc.MainWindowHandle)
   Log "foreground after AppActivate: handle=$afterFg title='$([RPInput]::WindowTitle($afterFg))' matchesTarget=$matched"
   Log "target window visible=$([RPInput]::IsWindowVisible($proc.MainWindowHandle)) minimized=$([RPInput]::IsIconic($proc.MainWindowHandle))"
+  Log "our integrity level (pid=$PID): $([RPInput]::IntegrityLevelOf($PID))"
+  Log "target integrity level (pid=$($proc.Id)): $([RPInput]::IntegrityLevelOf($proc.Id))"
 
   $VK_UP = 0x26
   $VK_RETURN = 0x0D
