@@ -99,6 +99,29 @@ function pollGamepad() {
 
 let pollingStarted = false
 
+// Keyboard fallback for the same kiosk:* navigation events — there was no
+// keyboard handling at all before this, only the Gamepad API poll below,
+// so nothing reacted to arrow keys / Enter / Escape regardless of whether
+// a controller was plugged in. Also serves as a hidden staff input method
+// in production, same idea as the PXN CB1 mapping.
+const KEY_MAP = {
+  ArrowUp: 'up',
+  ArrowDown: 'down',
+  ArrowLeft: 'left',
+  ArrowRight: 'right',
+  Enter: 'confirm',
+  Escape: 'back',
+}
+
+function onKeyDown(e) {
+  // Don't hijack typing in the admin panel's text/password fields.
+  const tag = e.target?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return
+
+  const action = KEY_MAP[e.key]
+  if (action) window.dispatchEvent(new CustomEvent(`kiosk:${action}`))
+}
+
 export default function useController() {
   useEffect(() => {
     // Chromium only exposes gamepads that were already connected once the
@@ -112,7 +135,8 @@ export default function useController() {
       requestAnimationFrame(pollGamepad)
     }
 
-    return () => {}
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 }
 
