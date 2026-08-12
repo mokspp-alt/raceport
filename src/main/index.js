@@ -59,6 +59,7 @@ function createOverlay() {
     transparent: true,
     backgroundColor: '#00000000',
     hasShadow: false,
+    roundedCorners: false,
     alwaysOnTop: true,
     focusable: false,
     skipTaskbar: true,
