@@ -2,6 +2,31 @@ import { useState, useEffect, useCallback } from 'react'
 import { getActiveGames } from '../../services/db'
 import { syncGamesFromServer } from '../../services/remoteSync'
 import { useControllerEvent } from '../hooks/useController'
+import logo from '../assets/brand/logo.png'
+import shashkiPreview from '../assets/games/shashki.png'
+import driftPreview from '../assets/games/drift.png'
+import rallyPreview from '../assets/games/rally.png'
+import { GAME_LABELS } from '../gameLabels'
+
+const PREVIEWS = { drift: driftPreview, shashki: shashkiPreview, rally: rallyPreview }
+
+function HintPill({ children }) {
+  return (
+    <div style={{
+      background: '#ffe100',
+      color: 'black',
+      borderRadius: 22,
+      padding: '2px 7px',
+      fontFamily: 'var(--font-display)',
+      fontSize: '1rem',
+      fontWeight: 700,
+      lineHeight: 'normal',
+      display: 'inline-block',
+    }}>
+      {children}
+    </div>
+  )
+}
 
 export default function GameSelect({ onSelect }) {
   const [games, setGames] = useState([])
@@ -42,79 +67,98 @@ export default function GameSelect({ onSelect }) {
   if (loading) return <LoadingScreen />
 
   return (
-    <div className="screen" style={{ background: 'radial-gradient(ellipse at center, #1a0a1f 0%, #0a0a0f 70%)' }}>
-      <div className="fade-in" style={{ textAlign: 'center' }}>
-        <div className="screen-title">Выберите игру</div>
-        <div className="screen-subtitle">◄ ► для выбора · A для запуска</div>
+    <div className="screen fade-in" style={{ background: '#151518', flexDirection: 'column', gap: 40, padding: 50 }}>
+      <img src={logo} alt="Raceport" style={{ height: 84, objectFit: 'contain' }} />
 
-        <div style={{ position: 'relative', height: 318, marginTop: '2rem' }}>
-          {games.map((game, i) => {
-            const offset = i - selectedIndex
-            const isSelected = offset === 0
-            const scale = isSelected ? 1 : Math.abs(offset) === 1 ? 0.85 : 0.7
-            const opacity = isSelected ? 1 : Math.abs(offset) === 1 ? 0.6 : 0.3
-            const translateX = offset * 340
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <div style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '2rem',
+          fontWeight: 700,
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase',
+          color: 'white',
+        }}>
+          Выберите игру
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', fontFamily: 'var(--font-display)', fontSize: '1rem', color: '#8e8e93' }}>
+          <span>используйте</span>
+          <HintPill>джойстик</HintPill>
+          <span>для выбора</span>
+          <HintPill>enter</HintPill>
+          <span>для запуска</span>
+        </div>
+      </div>
 
-            if (Math.abs(offset) > 2) return null
+      <div style={{ position: 'relative', height: 279, width: '100%' }}>
+        {games.map((game, i) => {
+          const offset = i - selectedIndex
+          const isSelected = offset === 0
+          const scale = isSelected ? 1 : Math.abs(offset) === 1 ? 0.85 : 0.7
+          const opacity = isSelected ? 1 : Math.abs(offset) === 1 ? 0.6 : 0.3
+          const translateX = offset * 460
+          const preview = PREVIEWS[game.name] || game.image_url
 
-            return (
-              <div
-                key={game.id}
-                className={`card ${isSelected ? 'selected' : ''}`}
-                style={{
-                  width: 280,
-                  flexShrink: 0,
-                  transform: `translateX(${translateX - selectedIndex * 0}px) scale(${scale})`,
-                  opacity,
-                  transition: 'all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                  position: 'absolute',
-                  top: 50,
-                  left: '50%',
-                  marginLeft: `${translateX - 140}px`,
-                  cursor: isSelected ? 'pointer' : 'default',
-                }}
-                onClick={() => isSelected ? confirm() : setSelectedIndex(i)}
-              >
-                <div style={{
-                  width: '100%',
-                  height: 180,
-                  background: game.image_url
-                    ? `url(${game.image_url}) center/cover`
-                    : `linear-gradient(135deg, ${game.color || '#2a1a3a'}, #0a0a1a)`,
-                  borderRadius: '14px 14px 0 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  {!game.image_url && (
-                    <span style={{ fontSize: 4 + 'rem' }}>{game.emoji || '🎮'}</span>
-                  )}
-                </div>
-                <div style={{ padding: '1.2rem' }}>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 700 }}>
-                    {game.name}
-                  </div>
-                  <div style={{ color: 'var(--text2)', fontSize: '0.9rem', marginTop: 4 }}>
-                    от {game.price_per_hour} ₽/час
-                  </div>
-                </div>
+          if (Math.abs(offset) > 2) return null
+
+          return (
+            <div
+              key={game.id}
+              style={{
+                width: 427,
+                height: 279,
+                borderRadius: 29,
+                overflow: 'hidden',
+                position: 'absolute',
+                top: 0,
+                left: '50%',
+                marginLeft: translateX - 427 / 2,
+                transform: `scale(${scale})`,
+                opacity,
+                transition: 'all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                cursor: isSelected ? 'pointer' : 'default',
+                background: preview
+                  ? `linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.55)), url(${preview}) center/cover`
+                  : `linear-gradient(180deg, #2a343f, #1f2020)`,
+                border: isSelected ? '3px solid #ffe100' : '3px solid transparent',
+                boxShadow: isSelected ? '0 0 111px rgba(255,225,0,0.36)' : 'none',
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'center',
+                paddingTop: 51,
+              }}
+              onClick={() => isSelected ? confirm() : setSelectedIndex(i)}
+            >
+              <div style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '2.25rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                color: 'white',
+              }}>
+                {GAME_LABELS[game.name] || game.name}
               </div>
-            )
-          })}
-        </div>
+            </div>
+          )
+        })}
+      </div>
 
-        {/* Dots */}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 20 }}>
-          {games.map((_, i) => (
-            <div key={i} style={{
-              width: i === selectedIndex ? 24 : 8,
-              height: 8,
-              borderRadius: 4,
-              background: i === selectedIndex ? 'var(--accent)' : 'var(--card-border)',
-              transition: 'all 0.2s',
-            }} />
-          ))}
-        </div>
+      {/* Dots */}
+      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+        {games.map((_, i) => (
+          <div key={i} style={{
+            width: i === selectedIndex ? 24 : 10,
+            height: 10,
+            borderRadius: 14,
+            background: i === selectedIndex ? 'white' : '#4f4f4f',
+            transition: 'all 0.2s',
+          }} />
+        ))}
+      </div>
+
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', color: '#8e8e93', textAlign: 'center' }}>
+        <div>при возникновении сложностей свяжитесь с нами</div>
+        <div>+7 993 441 07 01</div>
       </div>
     </div>
   )
