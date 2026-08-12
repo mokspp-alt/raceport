@@ -383,6 +383,14 @@ const POST_MARKER_DELAY_MS = 5000
 // case the marker line never appears at all (unconfirmed on real hardware —
 // still needs checking directly in log.txt) — a different failure mode than
 // the deliberate post-marker delay above.
+function logWatchDebug(line) {
+  try {
+    fs.appendFileSync(CLICK_LOG_PATH, `[${new Date().toISOString()}] ${line}\n`)
+  } catch {
+    // best-effort diagnostics only
+  }
+}
+
 function watchForLoadComplete(callback, fallbackMs = 180000) {
   let done = false
   let watcher = null
@@ -395,13 +403,15 @@ function watchForLoadComplete(callback, fallbackMs = 180000) {
   } catch {
     startOffset = 0
   }
+  logWatchDebug(`watchForLoadComplete: watching ${AC_LOG_PATH}, startOffset=${startOffset}`)
 
-  function finish() {
+  function finish(reason) {
     if (done) return
     done = true
     if (watcher) watcher.close()
     if (fallbackTimer) clearTimeout(fallbackTimer)
     if (postMarkerTimer) clearTimeout(postMarkerTimer)
+    logWatchDebug(`watchForLoadComplete: finished, reason=${reason}`)
     callback()
   }
 
@@ -414,19 +424,25 @@ function watchForLoadComplete(callback, fallbackMs = 180000) {
       // run has grown to yet, size stays below the stale startOffset
       // indefinitely. A drop in size means a fresh run started; rescan
       // from the top instead of waiting to grow past the old size.
-      if (stat.size < startOffset) startOffset = 0
+      if (stat.size < startOffset) {
+        logWatchDebug(`watchForLoadComplete: log.txt shrank (${stat.size} < ${startOffset}), resetting offset to 0`)
+        startOffset = 0
+      }
       if (stat.size <= startOffset) return
       const fd = fs.openSync(AC_LOG_PATH, 'r')
       const length = stat.size - startOffset
       const buffer = Buffer.alloc(length)
       fs.readSync(fd, buffer, 0, length, startOffset)
       fs.closeSync(fd)
-      if (buffer.includes(LOAD_COMPLETE_MARKER)) {
+      const found = buffer.includes(LOAD_COMPLETE_MARKER)
+      logWatchDebug(`watchForLoadComplete: read ${length} new bytes, marker found=${found}`)
+      if (found) {
         if (fallbackTimer) clearTimeout(fallbackTimer)
-        postMarkerTimer = setTimeout(finish, POST_MARKER_DELAY_MS)
+        postMarkerTimer = setTimeout(() => finish('marker-found'), POST_MARKER_DELAY_MS)
       }
     } catch (err) {
       console.error('Failed to read AC log for load-complete marker:', err)
+      logWatchDebug(`watchForLoadComplete: read error: ${err.message}`)
     }
   }
 
@@ -437,9 +453,26 @@ function watchForLoadComplete(callback, fallbackMs = 180000) {
     })
   } catch (err) {
     console.error('Failed to watch AC log for load-complete marker:', err)
+    logWatchDebug(`watchForLoadComplete: fs.watch setup failed: ${err.message}`)
   }
 
-  fallbackTimer = setTimeout(finish, fallbackMs)
+  fallbackTimer = setTimeout(() => {
+    // Dump the log's tail so the actual marker line (if any, under a
+    // different name) can be found after the fact without a live session.
+    try {
+      const stat = fs.statSync(AC_LOG_PATH)
+      const dumpFrom = Math.max(startOffset, stat.size - 4000)
+      const fd = fs.openSync(AC_LOG_PATH, 'r')
+      const length = stat.size - dumpFrom
+      const buffer = Buffer.alloc(length)
+      fs.readSync(fd, buffer, 0, length, dumpFrom)
+      fs.closeSync(fd)
+      logWatchDebug(`watchForLoadComplete: fallback firing, last ${length} bytes of log.txt:\n${buffer.toString('utf8')}`)
+    } catch (err) {
+      logWatchDebug(`watchForLoadComplete: fallback firing, failed to dump log tail: ${err.message}`)
+    }
+    finish('fallback-timeout')
+  }, fallbackMs)
 }
 
 ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackConfig, skin, driftMode, acExePath, durationSeconds }) => {
