@@ -182,5 +182,5 @@ const DEMO_GAMES = [
   { id: 2, name: 'shashki',     steam_app_id: '244210', car_id: 'hsrc_mby_rx8_scarlet', skin: '00_velocity_red', track_id: 'horizon_life_moscow', drift_mode: 0, price_per_hour: 150, emoji: '🏁', color: '#1a1a2a' },
   { id: 3, name: 'nurburgring', steam_app_id: '244210', car_id: 'bmw_m4_akrapovic',     track_id: 'ks_nordschleife',           price_per_hour: 200, emoji: '🏔️', color: '#1a2a1a' },
   { id: 4, name: 'gt3',         steam_app_id: '244210', car_id: 'ks_porsche_911_gt3_r', track_id: 'ks_barcelona',             price_per_hour: 200, emoji: '🏆', color: '#2a1a0a' },
-  { id: 5, name: 'f1',          steam_app_id: '244210', car_id: 'rss_formula_hybrid_2020', track_id: 'monza',                 price_per_hour: 250, emoji: '🏎️', color: '#c0392b' },
+  { id: 5, name: 'f1',          steam_app_id: '244210', car_id: 'syn_ferrari_f175',        track_id: 'monaco_f1_2023',        price_per_hour: 250, emoji: '🏎️', color: '#c0392b' },
 ]

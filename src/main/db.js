@@ -8,7 +8,7 @@ const store = new Store({
       { id: 2, name: 'shashki',     steam_app_id: '244210', car_id: 'hsrc_mby_rx8_scarlet', skin: '00_velocity_red', track_id: 'horizon_life_moscow', track_config: '', drift_mode: 0, ac_exe_path: '', price_per_hour: 150, emoji: '🏁', image_url: '', color: '#1a1a2a', active: 1, display_order: 2 },
       { id: 3, name: 'nurburgring', steam_app_id: '244210', car_id: 'bmw_m4_akrapovic',    track_id: 'ks_nordschleife',           track_config: '', ac_exe_path: '', price_per_hour: 200, emoji: '🏔️', image_url: '', color: '#1a2a1a', active: 1, display_order: 3 },
       { id: 4, name: 'gt3',         steam_app_id: '244210', car_id: 'ks_porsche_911_gt3_r', track_id: 'ks_barcelona',             track_config: '', ac_exe_path: '', price_per_hour: 200, emoji: '🏆', image_url: '', color: '#2a1a0a', active: 1, display_order: 4 },
-      { id: 5, name: 'f1',          steam_app_id: '244210', car_id: 'rss_formula_hybrid_2020', track_id: 'monza',                 track_config: '', ac_exe_path: '', price_per_hour: 250, emoji: '🏎️', image_url: '', color: '#c0392b', active: 1, display_order: 5 },
+      { id: 5, name: 'f1',          steam_app_id: '244210', car_id: 'syn_ferrari_f175',        track_id: 'monaco_f1_2023',        track_config: '', ac_exe_path: '', price_per_hour: 250, emoji: '🏎️', image_url: '', color: '#c0392b', active: 1, display_order: 5 },
     ],
     sessions: [],
     transactions: [],
