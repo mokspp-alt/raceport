@@ -290,8 +290,6 @@ function watchForDriveStart(fallbackMs = 45000) {
 // no extra native npm deps). Coordinates are for the kiosk's 1920x1080
 // fullscreen output — verify/adjust DRIVE_BUTTON_X/Y on the real kiosk if
 // the click lands off-target.
-const DRIVE_BUTTON_X = 55
-const DRIVE_BUTTON_Y = 165
 const AC_LOG_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'logs', 'log.txt')
 // Printed by acs.exe the instant the pit-lane camera fades in — i.e. loading
 // is done and the wheel-icon prompt is now on screen. More reliable than a
@@ -299,15 +297,41 @@ const AC_LOG_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'logs'
 // time waiting past when the screen was already ready.
 const LOAD_COMPLETE_MARKER = 'ACCameraManager::fadeIn'
 
+// Turns out the pit-lane screen already supports keyboard/gamepad menu
+// navigation (confirmed on real hardware: pulling the PXN's upshift paddle
+// moves focus to the wheel/drive button, Enter activates it) — the same
+// logical action AC's menus normally accept from the Up arrow key. Sending
+// Up then Enter is far more robust than clicking a guessed screen
+// coordinate, since it doesn't depend on resolution or icon position at all.
+//
+// Written to a temp .ps1 and run with -File instead of passed inline via
+// -Command: exec() on Windows runs through cmd.exe, whose quoting rules are
+// not the Unix ones — a nested-quote C# Add-Type block passed as a -Command
+// string argument silently failed to parse (cursor never moved at all).
+// A file sidesteps quoting entirely.
 function clickDriveButton() {
-  const script = 'Add-Type -TypeDefinition \'using System;using System.Runtime.InteropServices;' +
-    'public class RPMouse{[DllImport("user32.dll")]public static extern bool SetCursorPos(int x,int y);' +
-    '[DllImport("user32.dll")]public static extern void mouse_event(uint f,uint dx,uint dy,uint data,UIntPtr extra);}\'; ' +
-    `[RPMouse]::SetCursorPos(${DRIVE_BUTTON_X},${DRIVE_BUTTON_Y}); Start-Sleep -Milliseconds 100; ` +
-    '[RPMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero); [RPMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)'
+  const script = `Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class RPKeys {
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+}
+"@
+$VK_UP = 0x26
+$VK_RETURN = 0x0D
+$KEYEVENTF_KEYUP = 0x0002
 
-  exec(`powershell -NoProfile -Command "${script.replace(/"/g, '\\"')}"`, (err, stdout, stderr) => {
-    if (err) console.error('Drive-button click failed:', err, stderr)
+[RPKeys]::keybd_event($VK_UP, 0, 0, [UIntPtr]::Zero)
+[RPKeys]::keybd_event($VK_UP, 0, $KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+Start-Sleep -Milliseconds 200
+[RPKeys]::keybd_event($VK_RETURN, 0, 0, [UIntPtr]::Zero)
+[RPKeys]::keybd_event($VK_RETURN, 0, $KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+`
+  const scriptPath = path.join(os.tmpdir(), 'raceport-click.ps1')
+  fs.writeFileSync(scriptPath, script)
+
+  exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`, (err, stdout, stderr) => {
+    if (err) console.error('Drive-button key-nav failed:', err, stderr)
   })
 }
 
