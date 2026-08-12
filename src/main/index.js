@@ -556,7 +556,7 @@ function logWatchDebug(line) {
   }
 }
 
-function watchForLoadComplete(callback, fallbackMs = 180000) {
+function watchForLoadComplete(callback, fallbackMs = 90000) {
   let done = false
   let watcher = null
   let fallbackTimer = null
