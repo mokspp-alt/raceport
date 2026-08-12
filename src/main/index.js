@@ -329,6 +329,19 @@ const LOAD_COMPLETE_MARKER = 'SplashScreen removed from evOnEndFrame'
 // string argument silently failed to parse (cursor never moved at all).
 // A file sidesteps quoting entirely.
 const CLICK_LOG_PATH = path.join(os.tmpdir(), 'raceport-click.log')
+// Wiped on every app launch instead of appended to forever. This file
+// used to accumulate across every kiosk boot, including runs from before
+// an old bug was fixed where PowerShell wrote it as UTF-16LE (Out-File's
+// default) while Node wrote UTF-8 — mixing the two in one file makes any
+// viewer that trusts the leading BOM garble every byte written after the
+// switch to UTF-8, even though each individual writer is correct on its
+// own. A fresh file per launch also makes each log correspond to exactly
+// one test run instead of an ever-growing history.
+try {
+  fs.rmSync(CLICK_LOG_PATH, { force: true })
+} catch {
+  // best-effort cleanup only
+}
 
 function clickDriveButton() {
   mainWindow?.hide()
@@ -600,6 +613,7 @@ function watchForLoadComplete(callback, fallbackMs = 90000) {
   let watcher = null
   let fallbackTimer = null
   let postMarkerTimer = null
+  let pollInterval = null
   let startOffset = 0
 
   try {
@@ -615,6 +629,7 @@ function watchForLoadComplete(callback, fallbackMs = 90000) {
     if (watcher) watcher.close()
     if (fallbackTimer) clearTimeout(fallbackTimer)
     if (postMarkerTimer) clearTimeout(postMarkerTimer)
+    if (pollInterval) clearInterval(pollInterval)
     logWatchDebug(`watchForLoadComplete: finished, reason=${reason}`)
     callback()
   }
@@ -659,6 +674,15 @@ function watchForLoadComplete(callback, fallbackMs = 90000) {
     console.error('Failed to watch AC log for load-complete marker:', err)
     logWatchDebug(`watchForLoadComplete: fs.watch setup failed: ${err.message}`)
   }
+
+  // fs.watch is only an opportunistic fast path — on Windows it reliably
+  // stops delivering 'change' events partway through a run (confirmed on
+  // real hardware: it fired twice right after log.txt reset, then nothing
+  // for the rest of the load even though the file kept growing well past
+  // the marker). A real-time OS notification can't be trusted here, so
+  // this interval poll is the actual detection mechanism; fs.watch just
+  // lets it react a bit faster when notifications do happen to arrive.
+  pollInterval = setInterval(checkForMarker, 1000)
 
   fallbackTimer = setTimeout(() => {
     // Dump the log's tail so the actual marker line (if any, under a
