@@ -306,10 +306,9 @@ const LOAD_COMPLETE_MARKER = 'ACCameraManager::fadeIn'
 //
 // keybd_event sends input to whatever window currently has OS foreground
 // focus — not to acs.exe specifically. The kiosk's own mainWindow is
-// alwaysOnTop and was still showing/focused at this point (it only hides
-// later, once watchForDriveStart's own separate marker fires), so the keys
-// were very likely going nowhere useful. Hide it and explicitly foreground
-// the acs process first.
+// alwaysOnTop and would otherwise still be showing/focused at this point,
+// so the keys would very likely go nowhere useful. Hide it and explicitly
+// foreground the acs process first.
 //
 // Written to a temp .ps1 and run with -File instead of passed inline via
 // -Command: exec() on Windows runs through cmd.exe, whose quoting rules are
@@ -361,16 +360,23 @@ Start-Sleep -Milliseconds 200
 
   exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`, (err, stdout, stderr) => {
     if (err) console.error('Drive-button key-nav failed:', err, stderr)
+    // Only now — after we've actually tried to start driving — does it make
+    // sense to watch for the car moving (or fall back to starting the paid
+    // timer regardless). Previously this ran in parallel with the click
+    // itself, on its own 45s timer, so the countdown could start before the
+    // game had even finished loading.
+    watchForDriveStart()
   })
 }
 
 // Watches acs.exe's log for LOAD_COMPLETE_MARKER instead of guessing a fixed
 // delay. Only looks at bytes written after this watch started, since log.txt
-// accumulates across every session the kiosk runs, not just this one.
-function watchForLoadComplete(callback, fallbackMs = 180000) {
+// accumulates across every session the kiosk runs, not just this one. No
+// blind fallback: if the marker never shows up, the click just never fires
+// rather than firing at a guessed moment.
+function watchForLoadComplete(callback) {
   let done = false
   let watcher = null
-  let fallbackTimer = null
   let startOffset = 0
 
   try {
@@ -383,7 +389,6 @@ function watchForLoadComplete(callback, fallbackMs = 180000) {
     if (done) return
     done = true
     if (watcher) watcher.close()
-    if (fallbackTimer) clearTimeout(fallbackTimer)
     callback()
   }
 
@@ -416,8 +421,6 @@ function watchForLoadComplete(callback, fallbackMs = 180000) {
   } catch (err) {
     console.error('Failed to watch AC log for load-complete marker:', err)
   }
-
-  fallbackTimer = setTimeout(finish, fallbackMs)
 }
 
 ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackConfig, skin, driftMode, acExePath, durationSeconds }) => {
@@ -431,12 +434,14 @@ ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackC
       exec(`"${exePath}"`, { cwd: path.dirname(exePath) }, (err, stdout, stderr) => {
         if (err) console.error('acs.exe launch failed:', err, stderr)
       })
+      // watchForDriveStart() now runs from inside clickDriveButton, after the
+      // click is attempted — not in parallel with it on its own timer, which
+      // let the paid countdown start before the game had even loaded.
       watchForLoadComplete(clickDriveButton)
     } else {
       await shell.openExternal(`steam://rungameid/${steamAppId}`)
+      watchForDriveStart()
     }
-
-    watchForDriveStart()
 
     return { success: true }
   } catch (err) {
