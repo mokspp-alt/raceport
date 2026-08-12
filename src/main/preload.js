@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('kiosk', {
     getStats: (opts) => ipcRenderer.invoke('db-get-stats', opts),
   },
 
+  // Controller diagnostics
+  logController: (line) => ipcRenderer.send('log-controller-event', line),
+
   // Events
   on: (channel, cb) => {
     const allowed = ['timer-tick', 'timer-warning', 'timer-expired', 'open-admin', 'controller-action']

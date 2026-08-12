@@ -644,3 +644,15 @@ ipcMain.handle('admin-restart', async () => {
 ipcMain.on('controller-action', (event, action) => {
   mainWindow?.webContents.send('controller-action', action)
 })
+
+// ─── Controller diagnostics ───────────────────────────────────────────────────
+
+const CONTROLLER_LOG_PATH = path.join(os.tmpdir(), 'raceport-controller.log')
+
+ipcMain.on('log-controller-event', (_, line) => {
+  try {
+    fs.appendFileSync(CONTROLLER_LOG_PATH, `[${new Date().toISOString()}] ${line}\n`, 'utf8')
+  } catch (err) {
+    console.error('Failed to write controller log:', err)
+  }
+})

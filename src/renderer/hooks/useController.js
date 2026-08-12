@@ -30,6 +30,15 @@ function hatDirection(value) {
   return null
 }
 
+// Every dispatched kiosk:* action also gets written to
+// %TEMP%\raceport-controller.log, timestamped, so a run that behaves oddly
+// on the real kiosk can be diagnosed from the log afterwards instead of
+// only live on-screen.
+function fireAction(action, detail) {
+  window.dispatchEvent(new CustomEvent(`kiosk:${action}`))
+  window.kiosk?.logController(`kiosk:${action} (${detail})`)
+}
+
 let adminHoldTimer = null
 let lastButtons = {}
 let lastHatDirection = null
@@ -60,11 +69,11 @@ function pollGamepad() {
         // Button just pressed
         if (action === 'admin') {
           adminHoldTimer = setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('kiosk:admin'))
+            fireAction('admin', `button ${index} held`)
             window.kiosk?.on('open-admin', () => {})
           }, 3000)
         } else {
-          window.dispatchEvent(new CustomEvent(`kiosk:${action}`))
+          fireAction(action, `button ${index}`)
         }
       }
 
@@ -79,9 +88,10 @@ function pollGamepad() {
       lastButtons[index] = isPressed
     })
 
-    const direction = hatDirection(gp.axes[HAT_AXIS_INDEX])
+    const axisValue = gp.axes[HAT_AXIS_INDEX]
+    const direction = hatDirection(axisValue)
     if (direction && direction !== lastHatDirection) {
-      window.dispatchEvent(new CustomEvent(`kiosk:${direction}`))
+      fireAction(direction, `axis ${HAT_AXIS_INDEX}=${axisValue?.toFixed(2)}`)
     }
     lastHatDirection = direction
   }
@@ -111,7 +121,7 @@ function onKeyDown(e) {
   if (tag === 'INPUT' || tag === 'TEXTAREA') return
 
   const action = KEY_MAP[e.key]
-  if (action) window.dispatchEvent(new CustomEvent(`kiosk:${action}`))
+  if (action) fireAction(action, `key ${e.key}`)
 }
 
 export default function useController() {
