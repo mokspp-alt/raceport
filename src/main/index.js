@@ -403,7 +403,7 @@ if ($proc) {
 }
 `
   const scriptPath = path.join(os.tmpdir(), 'raceport-click.ps1')
-  fs.writeFileSync(scriptPath, script)
+  fs.writeFileSync(scriptPath, script, 'utf8')
 
   exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`, (err, stdout, stderr) => {
     if (err) console.error('Drive-button key-nav failed:', err, stderr)

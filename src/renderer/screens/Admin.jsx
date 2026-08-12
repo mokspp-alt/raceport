@@ -110,14 +110,14 @@ export default function Admin({ onClose }) {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--card-border)', paddingBottom: '0.5rem' }}>
-          {['games', 'stats'].map(t => (
+          {['games', 'stats', 'controller'].map(t => (
             <button
               key={t}
               className={`btn ${tab === t ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setTab(t)}
               style={{ fontSize: '0.9rem', padding: '0.5rem 1.5rem' }}
             >
-              {t === 'games' ? '🎮 Игры' : '📊 Статистика'}
+              {{ games: '🎮 Игры', stats: '📊 Статистика', controller: '🕹️ Контроллер' }[t]}
             </button>
           ))}
         </div>
@@ -126,6 +126,7 @@ export default function Admin({ onClose }) {
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {tab === 'games' && <GamesTab games={games} onRefresh={loadGames} />}
           {tab === 'stats' && <StatsTab stats={stats} />}
+          {tab === 'controller' && <ControllerTab />}
         </div>
       </div>
     </Overlay>
@@ -281,6 +282,82 @@ function StatCard({ label, value }) {
       <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, color: 'var(--accent)' }}>
         {value}
       </div>
+    </div>
+  )
+}
+
+// Live readout of raw gamepad button/axis indices — press a physical
+// control and see which index reacts, since production kiosk builds have
+// no devtools console to read this off of otherwise.
+function ControllerTab() {
+  const [pads, setPads] = useState([])
+
+  useEffect(() => {
+    let raf
+    let mounted = true
+
+    function tick() {
+      if (!mounted) return
+      const gamepads = navigator.getGamepads()
+      const snapshot = []
+      for (const gp of gamepads) {
+        if (!gp) continue
+        snapshot.push({
+          id: gp.id,
+          buttons: gp.buttons.map(b => b.pressed),
+          axes: gp.axes.map(a => Number(a.toFixed(2))),
+        })
+      }
+      setPads(snapshot)
+      raf = requestAnimationFrame(tick)
+    }
+
+    raf = requestAnimationFrame(tick)
+    return () => { mounted = false; cancelAnimationFrame(raf) }
+  }, [])
+
+  if (pads.length === 0) {
+    return (
+      <div style={{ color: 'var(--text2)' }}>
+        Геймпад не обнаружен. Нажмите любую кнопку на контроллере — Chromium показывает
+        подключённые устройства только после первого сигнала с них.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: '1.5rem' }}>
+      {pads.map((gp, padIndex) => (
+        <div key={padIndex} className="card" style={{ padding: '1.25rem' }}>
+          <div style={{ fontWeight: 700, marginBottom: '0.75rem' }}>{gp.id}</div>
+          <div style={{ color: 'var(--text2)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Кнопки (индекс: состояние)</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1rem' }}>
+            {gp.buttons.map((pressed, i) => (
+              <span key={i} style={{
+                padding: '0.3rem 0.6rem', borderRadius: 6, fontSize: '0.85rem',
+                background: pressed ? 'var(--accent)' : 'var(--bg2)',
+                border: '1px solid var(--card-border)',
+                fontWeight: pressed ? 700 : 400,
+              }}>
+                {i}
+              </span>
+            ))}
+          </div>
+          <div style={{ color: 'var(--text2)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Оси (индекс: значение)</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {gp.axes.map((value, i) => (
+              <span key={i} style={{
+                padding: '0.3rem 0.6rem', borderRadius: 6, fontSize: '0.85rem',
+                background: Math.abs(value) > 0.15 ? 'var(--accent)' : 'var(--bg2)',
+                border: '1px solid var(--card-border)',
+                fontWeight: Math.abs(value) > 0.15 ? 700 : 400,
+              }}>
+                {i}: {value}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

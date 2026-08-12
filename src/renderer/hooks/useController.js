@@ -15,13 +15,47 @@ const BUTTON_MAP = {
   15: 'right',     // D-pad right
 }
 
+// Fallback for controllers that report the d-pad as a hat-switch axis
+// instead of four buttons (common on devices Chromium doesn't recognize
+// with the "standard" gamepad mapping — button/axis indices then come
+// through raw instead of remapped to 12-15). Value is centered at -1 and
+// otherwise one of 8 compass points evenly spaced across [-1, 1]; only the
+// four cardinal ones matter here.
+const HAT_AXIS_INDEX = 9
+const HAT_EPSILON = 0.1
+const HAT_DIRECTIONS = [
+  [-1, 'up'],
+  [-1 / 7, 'right'],
+  [3 / 7, 'down'],
+  [1, 'left'],
+]
+
+function hatDirection(value) {
+  if (value === undefined) return null
+  for (const [angle, dir] of HAT_DIRECTIONS) {
+    if (Math.abs(value - angle) < HAT_EPSILON) return dir
+  }
+  return null
+}
+
 let adminHoldTimer = null
 let lastButtons = {}
+let lastHatDirection = null
+let lastLoggedState = ''
 
 function pollGamepad() {
   const gamepads = navigator.getGamepads()
   for (const gp of gamepads) {
     if (!gp) continue
+
+    // Dumps raw button/axis state to the console on every change — lets the
+    // indices for an unfamiliar controller be read straight off devtools on
+    // the kiosk instead of guessing blind from logs collected remotely.
+    const stateKey = `${gp.buttons.map((b) => (b.pressed ? 1 : 0)).join('')}|${gp.axes.map((a) => a.toFixed(2)).join(',')}`
+    if (stateKey !== lastLoggedState) {
+      lastLoggedState = stateKey
+      console.log(`[controller] ${gp.id}`, stateKey)
+    }
 
     gp.buttons.forEach((btn, index) => {
       const action = BUTTON_MAP[index]
@@ -53,25 +87,28 @@ function pollGamepad() {
       lastButtons[index] = isPressed
     })
 
-    // Analog stick → navigation
-    const axisX = gp.axes[0]
-    const axisY = gp.axes[1]
-    if (Math.abs(axisX) > 0.7 || Math.abs(axisY) > 0.7) {
-      // Debounce analog
+    const direction = hatDirection(gp.axes[HAT_AXIS_INDEX])
+    if (direction && direction !== lastHatDirection) {
+      window.dispatchEvent(new CustomEvent(`kiosk:${direction}`))
     }
+    lastHatDirection = direction
   }
 
   requestAnimationFrame(pollGamepad)
 }
 
+let pollingStarted = false
+
 export default function useController() {
   useEffect(() => {
-    window.addEventListener('gamepadconnected', () => {
-      requestAnimationFrame(pollGamepad)
-    })
-
-    // If gamepad already connected
-    if (navigator.getGamepads().some(Boolean)) {
+    // Chromium only exposes gamepads that were already connected once the
+    // page has seen some interaction with them, so 'gamepadconnected' can
+    // arrive late or (for some devices) not at all. Starting the poll loop
+    // unconditionally on mount means the very next frame after the browser
+    // does expose the controller picks it up either way, instead of the
+    // loop never starting at all.
+    if (!pollingStarted) {
+      pollingStarted = true
       requestAnimationFrame(pollGamepad)
     }
 
