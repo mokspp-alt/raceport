@@ -443,22 +443,28 @@ public class RPInput {
     return "System (0x" + rid.ToString("X") + ")";
   }
 
-  // Returns how many of the 2 injected events (key down + key up) SendInput
-  // actually accepted — 0 means the OS silently dropped the input.
-  public static uint SendKey(ushort vk) {
+  // Returns "accepted|down=N,err=E;up=N,err=E" — accepted is how many of
+  // the 2 injected events SendInput took, out of the possible 2 (0 means
+  // the OS silently dropped the input). GetLastWin32Error is captured
+  // immediately after each individual SendInput call, since MSDN notes it
+  // won't specifically flag UIPI as the cause but may still surface
+  // something else (e.g. a BlockInput() call from another process).
+  public static string SendKey(ushort vk) {
     int size = Marshal.SizeOf(typeof(INPUT));
     INPUT down = new INPUT();
     down.type = INPUT_KEYBOARD;
     down.U.ki.wVk = vk;
     uint sentDown = SendInput(1, new INPUT[] { down }, size);
+    int errDown = Marshal.GetLastWin32Error();
 
     INPUT up = new INPUT();
     up.type = INPUT_KEYBOARD;
     up.U.ki.wVk = vk;
     up.U.ki.dwFlags = KEYEVENTF_KEYUP;
     uint sentUp = SendInput(1, new INPUT[] { up }, size);
+    int errUp = Marshal.GetLastWin32Error();
 
-    return sentDown + sentUp;
+    return (sentDown + sentUp) + "|down=" + sentDown + ",err=" + errDown + ";up=" + sentUp + ",err=" + errUp;
   }
 
   public static string WindowTitle(IntPtr hWnd) {
@@ -513,14 +519,43 @@ if ($proc) {
   $VK_RETURN = 0x0D
 
   $sentUp = [RPInput]::SendKey($VK_UP)
-  Log "sent VK_UP, SendInput accepted $sentUp/2 events"
+  Log "sent VK_UP: $sentUp"
   Start-Sleep -Milliseconds 200
   $sentEnter = [RPInput]::SendKey($VK_RETURN)
-  Log "sent VK_RETURN, SendInput accepted $sentEnter/2 events"
+  Log "sent VK_RETURN: $sentEnter"
 } else {
   # Previously sent the keys blind even when acs.exe wasn't found — pointless,
   # since there's nothing to receive them.
   Log "acs.exe process not found, skipping key send"
+}
+
+# Control test: focus, integrity level and fullscreen mode are all already
+# ruled out, but every check so far has been AC-specific. Notepad is a
+# plain Win32 window with no game-style input handling — if SendInput to
+# it also comes back 0, that points at something blocking synthetic input
+# machine-wide (BlockInput() from another process, active Secure Desktop)
+# rather than anything about AC/CSP/the wheel driver stack specifically.
+try {
+  $notepad = Start-Process notepad.exe -PassThru
+  for ($i = 0; $i -lt 20 -and $notepad.MainWindowHandle -eq [IntPtr]::Zero; $i++) {
+    Start-Sleep -Milliseconds 100
+    $notepad.Refresh()
+  }
+  Log "control: notepad pid=$($notepad.Id) MainWindowHandle=$($notepad.MainWindowHandle)"
+
+  [Microsoft.VisualBasic.Interaction]::AppActivate($notepad.Id)
+  Start-Sleep -Milliseconds 300
+  $npFg = [RPInput]::GetForegroundWindow()
+  Log "control: foreground after AppActivate: handle=$npFg matchesNotepad=$($npFg -eq $notepad.MainWindowHandle)"
+
+  $VK_A = 0x41
+  $ctrlSent = [RPInput]::SendKey($VK_A)
+  Log "control: sent VK_A to notepad: $ctrlSent"
+
+  Start-Sleep -Milliseconds 200
+  Stop-Process -Id $notepad.Id -Force -ErrorAction SilentlyContinue
+} catch {
+  Log "control test threw: $_"
 }
 `
   const scriptPath = path.join(os.tmpdir(), 'raceport-click.ps1')
