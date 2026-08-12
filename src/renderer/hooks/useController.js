@@ -34,7 +34,23 @@ function hatDirection(value) {
 // %TEMP%\raceport-controller.log, timestamped, so a run that behaves oddly
 // on the real kiosk can be diagnosed from the log afterwards instead of
 // only live on-screen.
+//
+// DEBOUNCE_MS: real hardware bounces — a single physical press/rocker-tilt
+// flips the raw pressed/axis state back and forth for ~100-300ms, and each
+// flip is a legitimate edge as far as the edge-detection below is
+// concerned, so without this a single press fired the same action a dozen
+// times (confirmed via raceport-controller.log: bursts of identical
+// dispatches a few ms apart, matching a high-refresh-rate poll loop riding
+// the bounce). Ignoring repeats of the same action within this window
+// collapses each burst back down to one.
+const DEBOUNCE_MS = 200
+const lastFired = {}
+
 function fireAction(action, detail) {
+  const now = Date.now()
+  if (lastFired[action] && now - lastFired[action] < DEBOUNCE_MS) return
+  lastFired[action] = now
+
   window.dispatchEvent(new CustomEvent(`kiosk:${action}`))
   window.kiosk?.logController(`kiosk:${action} (${detail})`)
 }
