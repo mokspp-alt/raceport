@@ -292,7 +292,12 @@ function watchForDriveStart(fallbackMs = 45000) {
 // the click lands off-target.
 const DRIVE_BUTTON_X = 55
 const DRIVE_BUTTON_Y = 165
-const DRIVE_BUTTON_DELAY_MS = 15000
+const AC_LOG_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'logs', 'log.txt')
+// Printed by acs.exe the instant the pit-lane camera fades in — i.e. loading
+// is done and the wheel-icon prompt is now on screen. More reliable than a
+// fixed delay, which either clicks too early (nothing there yet) or wastes
+// time waiting past when the screen was already ready.
+const LOAD_COMPLETE_MARKER = 'ACCameraManager::fadeIn'
 
 function clickDriveButton() {
   const script = 'Add-Type -TypeDefinition \'using System;using System.Runtime.InteropServices;' +
@@ -306,6 +311,56 @@ function clickDriveButton() {
   })
 }
 
+// Watches acs.exe's log for LOAD_COMPLETE_MARKER instead of guessing a fixed
+// delay. Only looks at bytes written after this watch started, since log.txt
+// accumulates across every session the kiosk runs, not just this one.
+function watchForLoadComplete(callback, fallbackMs = 30000) {
+  let done = false
+  let watcher = null
+  let fallbackTimer = null
+  let startOffset = 0
+
+  try {
+    startOffset = fs.statSync(AC_LOG_PATH).size
+  } catch {
+    startOffset = 0
+  }
+
+  function finish() {
+    if (done) return
+    done = true
+    if (watcher) watcher.close()
+    if (fallbackTimer) clearTimeout(fallbackTimer)
+    callback()
+  }
+
+  function checkForMarker() {
+    try {
+      const stat = fs.statSync(AC_LOG_PATH)
+      if (stat.size <= startOffset) return
+      const fd = fs.openSync(AC_LOG_PATH, 'r')
+      const length = stat.size - startOffset
+      const buffer = Buffer.alloc(length)
+      fs.readSync(fd, buffer, 0, length, startOffset)
+      fs.closeSync(fd)
+      if (buffer.includes(LOAD_COMPLETE_MARKER)) finish()
+    } catch (err) {
+      console.error('Failed to read AC log for load-complete marker:', err)
+    }
+  }
+
+  try {
+    fs.mkdirSync(path.dirname(AC_LOG_PATH), { recursive: true })
+    watcher = fs.watch(path.dirname(AC_LOG_PATH), (eventType, filename) => {
+      if (filename === path.basename(AC_LOG_PATH)) checkForMarker()
+    })
+  } catch (err) {
+    console.error('Failed to watch AC log for load-complete marker:', err)
+  }
+
+  fallbackTimer = setTimeout(finish, fallbackMs)
+}
+
 ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackConfig, skin, driftMode, acExePath, durationSeconds }) => {
   try {
     remainingSeconds = durationSeconds
@@ -317,7 +372,7 @@ ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackC
       exec(`"${exePath}"`, { cwd: path.dirname(exePath) }, (err, stdout, stderr) => {
         if (err) console.error('acs.exe launch failed:', err, stderr)
       })
-      setTimeout(clickDriveButton, DRIVE_BUTTON_DELAY_MS)
+      watchForLoadComplete(clickDriveButton)
     } else {
       await shell.openExternal(`steam://rungameid/${steamAppId}`)
     }
