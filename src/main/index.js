@@ -304,19 +304,43 @@ const LOAD_COMPLETE_MARKER = 'ACCameraManager::fadeIn'
 // Up then Enter is far more robust than clicking a guessed screen
 // coordinate, since it doesn't depend on resolution or icon position at all.
 //
+// keybd_event sends input to whatever window currently has OS foreground
+// focus — not to acs.exe specifically. The kiosk's own mainWindow is
+// alwaysOnTop and was still showing/focused at this point (it only hides
+// later, once watchForDriveStart's own separate marker fires), so the keys
+// were very likely going nowhere useful. Hide it and explicitly foreground
+// the acs process first.
+//
 // Written to a temp .ps1 and run with -File instead of passed inline via
 // -Command: exec() on Windows runs through cmd.exe, whose quoting rules are
 // not the Unix ones — a nested-quote C# Add-Type block passed as a -Command
 // string argument silently failed to parse (cursor never moved at all).
 // A file sidesteps quoting entirely.
+const CLICK_LOG_PATH = path.join(os.tmpdir(), 'raceport-click.log')
+
 function clickDriveButton() {
+  mainWindow?.hide()
+
   const script = `Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 public class RPKeys {
   [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
 }
 "@
+$logPath = "${CLICK_LOG_PATH.replace(/\\/g, '\\\\')}"
+"[$(Get-Date -Format o)] clickDriveButton script starting" | Out-File -Append $logPath
+
+$proc = Get-Process -Name "acs" -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($proc -and $proc.MainWindowHandle -ne [IntPtr]::Zero) {
+  $focused = [RPKeys]::SetForegroundWindow($proc.MainWindowHandle)
+  "[$(Get-Date -Format o)] found acs.exe pid=$($proc.Id), SetForegroundWindow returned $focused" | Out-File -Append $logPath
+} else {
+  "[$(Get-Date -Format o)] acs.exe process or window handle not found" | Out-File -Append $logPath
+}
+Start-Sleep -Milliseconds 300
+
 $VK_UP = 0x26
 $VK_RETURN = 0x0D
 $KEYEVENTF_KEYUP = 0x0002
@@ -326,6 +350,7 @@ $KEYEVENTF_KEYUP = 0x0002
 Start-Sleep -Milliseconds 200
 [RPKeys]::keybd_event($VK_RETURN, 0, 0, [UIntPtr]::Zero)
 [RPKeys]::keybd_event($VK_RETURN, 0, $KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+"[$(Get-Date -Format o)] sent Up+Enter" | Out-File -Append $logPath
 `
   const scriptPath = path.join(os.tmpdir(), 'raceport-click.ps1')
   fs.writeFileSync(scriptPath, script)
