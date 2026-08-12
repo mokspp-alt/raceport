@@ -298,11 +298,17 @@ function watchForDriveStart(fallbackMs = 150000) {
 // fullscreen output — verify/adjust DRIVE_BUTTON_X/Y on the real kiosk if
 // the click lands off-target.
 const AC_LOG_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 'logs', 'log.txt')
-// Printed by acs.exe the instant the pit-lane camera fades in — i.e. loading
-// is done and the wheel-icon prompt is now on screen. More reliable than a
-// fixed delay, which either clicks too early (nothing there yet) or wastes
-// time waiting past when the screen was already ready.
-const LOAD_COMPLETE_MARKER = 'ACCameraManager::fadeIn'
+// Printed by acs.exe the instant the loading splash screen is torn down and
+// the pit-lane scene (with the wheel-icon prompt) becomes visible — the real
+// boundary between "still loading" and "ready to click", confirmed against
+// an actual log.txt from a successful run (heavy car/AI/physics init ends,
+// this line prints, then shader/texture-cache warnings follow while the
+// scene is already interactive). The previous marker, 'ACCameraManager::
+// fadeIn', never appears in real logs at all — always fell through to the
+// fixed-delay fallback. More reliable than a fixed delay, which either
+// clicks too early (nothing there yet) or wastes time waiting past when the
+// screen was already ready.
+const LOAD_COMPLETE_MARKER = 'SplashScreen removed from evOnEndFrame'
 
 // Turns out the pit-lane screen already supports keyboard/gamepad menu
 // navigation (confirmed on real hardware: pulling the PXN's upshift paddle
