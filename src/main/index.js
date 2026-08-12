@@ -90,9 +90,15 @@ function closeOverlay() {
 app.whenReady().then(() => {
   createWindow()
 
-  globalShortcut.register('CommandOrControl+Shift+A', () => {
+  const adminShortcutRegistered = globalShortcut.register('CommandOrControl+Shift+A', () => {
     mainWindow?.webContents.send('open-admin')
   })
+  if (!adminShortcutRegistered) {
+    // register() fails silently (no throw) if another app already holds
+    // this accelerator — the in-window keydown fallback in App.jsx still
+    // covers admin access when that happens, but it's worth knowing about.
+    console.error('Failed to register Ctrl+Shift+A — likely already bound by another app')
+  }
 })
 
 app.on('window-all-closed', () => {

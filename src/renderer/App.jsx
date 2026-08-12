@@ -16,6 +16,16 @@ export default function App() {
 
   useEffect(() => {
     window.kiosk?.on('open-admin', () => setAdminOpen(true))
+
+    // Fallback for when the OS-level Ctrl+Shift+A shortcut is silently
+    // stolen by another app (Electron's globalShortcut.register() fails
+    // without error in that case) — this fires as long as the window has
+    // focus, which it always does outside kiosk/fullscreen production mode.
+    const onKeyDown = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') setAdminOpen(true)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
   const navigate = useCallback((to, data = {}) => {
