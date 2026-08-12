@@ -280,6 +280,32 @@ function watchForDriveStart(fallbackMs = 45000) {
   fallbackTimer = setTimeout(trigger, fallbackMs)
 }
 
+// acs.exe launched directly (no AssettoCorsa.exe menu first) always shows a
+// "click the wheel icon to start driving" pit-lane prompt — confirmed this is
+// not something race.ini or CSP config can skip: the Lua/Python app registry
+// (where CSP's ac.disableQuickMenuPitstop() lives) only initializes inside
+// AssettoCorsa.exe's own menu flow, which direct acs.exe launches bypass
+// entirely. No config-only fix exists for this, so we click the icon
+// ourselves via a raw Win32 SetCursorPos + mouse_event call (PowerShell,
+// no extra native npm deps). Coordinates are for the kiosk's 1920x1080
+// fullscreen output — verify/adjust DRIVE_BUTTON_X/Y on the real kiosk if
+// the click lands off-target.
+const DRIVE_BUTTON_X = 55
+const DRIVE_BUTTON_Y = 165
+const DRIVE_BUTTON_DELAY_MS = 15000
+
+function clickDriveButton() {
+  const script = 'Add-Type -TypeDefinition \'using System;using System.Runtime.InteropServices;' +
+    'public class RPMouse{[DllImport("user32.dll")]public static extern bool SetCursorPos(int x,int y);' +
+    '[DllImport("user32.dll")]public static extern void mouse_event(uint f,uint dx,uint dy,uint data,UIntPtr extra);}\'; ' +
+    `[RPMouse]::SetCursorPos(${DRIVE_BUTTON_X},${DRIVE_BUTTON_Y}); Start-Sleep -Milliseconds 100; ` +
+    '[RPMouse]::mouse_event(0x0002,0,0,0,[UIntPtr]::Zero); [RPMouse]::mouse_event(0x0004,0,0,0,[UIntPtr]::Zero)'
+
+  exec(`powershell -NoProfile -Command "${script.replace(/"/g, '\\"')}"`, (err, stdout, stderr) => {
+    if (err) console.error('Drive-button click failed:', err, stderr)
+  })
+}
+
 ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackConfig, skin, driftMode, acExePath, durationSeconds }) => {
   try {
     remainingSeconds = durationSeconds
@@ -291,6 +317,7 @@ ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackC
       exec(`"${exePath}"`, { cwd: path.dirname(exePath) }, (err, stdout, stderr) => {
         if (err) console.error('acs.exe launch failed:', err, stderr)
       })
+      setTimeout(clickDriveButton, DRIVE_BUTTON_DELAY_MS)
     } else {
       await shell.openExternal(`steam://rungameid/${steamAppId}`)
     }
