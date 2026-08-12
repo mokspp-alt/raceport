@@ -355,9 +355,36 @@ public struct KEYBDINPUT {
   public IntPtr dwExtraInfo;
 }
 
+[StructLayout(LayoutKind.Sequential)]
+public struct MOUSEINPUT {
+  public int dx;
+  public int dy;
+  public uint mouseData;
+  public uint dwFlags;
+  public uint time;
+  public IntPtr dwExtraInfo;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct HARDWAREINPUT {
+  public uint uMsg;
+  public ushort wParamL;
+  public ushort wParamH;
+}
+
+// The real union also has MOUSEINPUT and HARDWAREINPUT members — omitting
+// them (as an earlier version of this did) makes Marshal.SizeOf compute a
+// smaller INPUT struct than user32.dll actually uses on 64-bit Windows
+// (MOUSEINPUT pads out larger than KEYBDINPUT), so the cbSize this code
+// passed to SendInput never matched what the OS expected. SendInput
+// rejects the entire call outright when that happens — confirmed via
+// GetLastWin32Error returning 87 (ERROR_INVALID_PARAMETER) for every send,
+// to every window tried, AC or not.
 [StructLayout(LayoutKind.Explicit)]
 public struct InputUnion {
+  [FieldOffset(0)] public MOUSEINPUT mi;
   [FieldOffset(0)] public KEYBDINPUT ki;
+  [FieldOffset(0)] public HARDWAREINPUT hi;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -527,35 +554,6 @@ if ($proc) {
   # Previously sent the keys blind even when acs.exe wasn't found — pointless,
   # since there's nothing to receive them.
   Log "acs.exe process not found, skipping key send"
-}
-
-# Control test: focus, integrity level and fullscreen mode are all already
-# ruled out, but every check so far has been AC-specific. Notepad is a
-# plain Win32 window with no game-style input handling — if SendInput to
-# it also comes back 0, that points at something blocking synthetic input
-# machine-wide (BlockInput() from another process, active Secure Desktop)
-# rather than anything about AC/CSP/the wheel driver stack specifically.
-try {
-  $notepad = Start-Process notepad.exe -PassThru
-  for ($i = 0; $i -lt 20 -and $notepad.MainWindowHandle -eq [IntPtr]::Zero; $i++) {
-    Start-Sleep -Milliseconds 100
-    $notepad.Refresh()
-  }
-  Log "control: notepad pid=$($notepad.Id) MainWindowHandle=$($notepad.MainWindowHandle)"
-
-  [Microsoft.VisualBasic.Interaction]::AppActivate($notepad.Id)
-  Start-Sleep -Milliseconds 300
-  $npFg = [RPInput]::GetForegroundWindow()
-  Log "control: foreground after AppActivate: handle=$npFg matchesNotepad=$($npFg -eq $notepad.MainWindowHandle)"
-
-  $VK_A = 0x41
-  $ctrlSent = [RPInput]::SendKey($VK_A)
-  Log "control: sent VK_A to notepad: $ctrlSent"
-
-  Start-Sleep -Milliseconds 200
-  Stop-Process -Id $notepad.Id -Force -ErrorAction SilentlyContinue
-} catch {
-  Log "control test threw: $_"
 }
 `
   const scriptPath = path.join(os.tmpdir(), 'raceport-click.ps1')
