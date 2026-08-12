@@ -337,6 +337,12 @@ function watchForLoadComplete(callback, fallbackMs = 180000) {
   function checkForMarker() {
     try {
       const stat = fs.statSync(AC_LOG_PATH)
+      // acs.exe truncates log.txt at the start of each run rather than
+      // appending — if the previous session's log was bigger than this
+      // run has grown to yet, size stays below the stale startOffset
+      // indefinitely. A drop in size means a fresh run started; rescan
+      // from the top instead of waiting to grow past the old size.
+      if (stat.size < startOffset) startOffset = 0
       if (stat.size <= startOffset) return
       const fd = fs.openSync(AC_LOG_PATH, 'r')
       const length = stat.size - startOffset
