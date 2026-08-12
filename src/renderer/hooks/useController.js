@@ -4,30 +4,22 @@ import { useEffect } from 'react'
 // The device shows as a standard HID gamepad in Windows
 // We dispatch custom events so any screen can listen
 
+// Confirmed on real hardware via the admin panel's Controller tab.
 const BUTTON_MAP = {
-  0: 'confirm',    // A / Button 1
-  1: 'back',       // B / Button 2
-  2: 'action',     // X / Button 3
-  3: 'admin',      // Y / Button 4 (long-press triggers admin)
-  12: 'up',        // D-pad up
-  13: 'down',      // D-pad down
-  14: 'left',      // D-pad left
-  15: 'right',     // D-pad right
+  2: 'action',     // unconfirmed guess — not yet tested on this device
+  3: 'admin',      // unconfirmed guess — long-press triggers admin, not yet tested
+  8: 'back',       // эскейп
+  9: 'confirm',    // энтер
 }
 
-// Fallback for controllers that report the d-pad as a hat-switch axis
-// instead of four buttons (common on devices Chromium doesn't recognize
-// with the "standard" gamepad mapping — button/axis indices then come
-// through raw instead of remapped to 12-15). Value is centered at -1 and
-// otherwise one of 8 compass points evenly spaced across [-1, 1]; only the
-// four cardinal ones matter here.
+// This device has no separate d-pad buttons — "назад"/"вперёд" report as
+// a single hat-switch axis instead. Values confirmed on real hardware
+// via the admin panel's Controller tab.
 const HAT_AXIS_INDEX = 9
 const HAT_EPSILON = 0.1
 const HAT_DIRECTIONS = [
-  [-1, 'up'],
-  [-1 / 7, 'right'],
-  [3 / 7, 'down'],
-  [1, 'left'],
+  [0.71, 'left'],   // назад — previous item
+  [-0.43, 'right'], // вперёд — next item
 ]
 
 function hatDirection(value) {
