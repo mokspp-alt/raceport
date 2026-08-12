@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useControllerEvent } from '../hooks/useController'
 
 const TIME_OPTIONS = [
+  { minutes: 5, label: '5 мин' },
   { minutes: 15, label: '15 мин' },
   { minutes: 30, label: '30 мин' },
   { minutes: 45, label: '45 мин' },
@@ -9,7 +10,7 @@ const TIME_OPTIONS = [
 ]
 
 export default function TimeSelect({ game, onSelect, onBack }) {
-  const [selectedIndex, setSelectedIndex] = useState(1)
+  const [selectedIndex, setSelectedIndex] = useState(2)
 
   const price = game
     ? Math.round((game.price_per_hour / 60) * TIME_OPTIONS[selectedIndex].minutes)
