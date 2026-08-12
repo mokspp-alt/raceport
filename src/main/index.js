@@ -314,7 +314,7 @@ function clickDriveButton() {
 // Watches acs.exe's log for LOAD_COMPLETE_MARKER instead of guessing a fixed
 // delay. Only looks at bytes written after this watch started, since log.txt
 // accumulates across every session the kiosk runs, not just this one.
-function watchForLoadComplete(callback, fallbackMs = 30000) {
+function watchForLoadComplete(callback, fallbackMs = 180000) {
   let done = false
   let watcher = null
   let fallbackTimer = null
