@@ -370,20 +370,24 @@ Start-Sleep -Milliseconds 200
   })
 }
 
+// Once LOAD_COMPLETE_MARKER shows up, the pit-lane screen has just started
+// fading in — give it a moment to actually finish rendering/animating
+// before sending keys, rather than hitting it the instant the log line
+// appears.
+const POST_MARKER_DELAY_MS = 5000
+
 // Watches acs.exe's log for LOAD_COMPLETE_MARKER instead of guessing a fixed
-// delay. Only looks at bytes written after this watch started, since log.txt
-// accumulates across every session the kiosk runs, not just this one.
-// LOAD_COMPLETE_MARKER hasn't been confirmed to actually appear in log.txt
-// on the real kiosk (still needs checking directly) — without the fallback
-// below, the click just silently never fires if it doesn't, so it's back
-// for now even though it means clicking at a guessed moment in that case.
-// Temporarily 5s (not a realistic load time) to iterate on the click
-// mechanism itself quickly — raise this back up once that's confirmed
-// working, so it doesn't click a still-loading screen in normal use.
-function watchForLoadComplete(callback, fallbackMs = 5000) {
+// delay for the whole load. Only looks at bytes written after this watch
+// started, since log.txt accumulates across every session the kiosk runs,
+// not just this one. fallbackMs is a separate, longer safety net for the
+// case the marker line never appears at all (unconfirmed on real hardware —
+// still needs checking directly in log.txt) — a different failure mode than
+// the deliberate post-marker delay above.
+function watchForLoadComplete(callback, fallbackMs = 180000) {
   let done = false
   let watcher = null
   let fallbackTimer = null
+  let postMarkerTimer = null
   let startOffset = 0
 
   try {
@@ -397,10 +401,12 @@ function watchForLoadComplete(callback, fallbackMs = 5000) {
     done = true
     if (watcher) watcher.close()
     if (fallbackTimer) clearTimeout(fallbackTimer)
+    if (postMarkerTimer) clearTimeout(postMarkerTimer)
     callback()
   }
 
   function checkForMarker() {
+    if (postMarkerTimer) return // already found, just waiting out the delay
     try {
       const stat = fs.statSync(AC_LOG_PATH)
       // acs.exe truncates log.txt at the start of each run rather than
@@ -415,7 +421,10 @@ function watchForLoadComplete(callback, fallbackMs = 5000) {
       const buffer = Buffer.alloc(length)
       fs.readSync(fd, buffer, 0, length, startOffset)
       fs.closeSync(fd)
-      if (buffer.includes(LOAD_COMPLETE_MARKER)) finish()
+      if (buffer.includes(LOAD_COMPLETE_MARKER)) {
+        if (fallbackTimer) clearTimeout(fallbackTimer)
+        postMarkerTimer = setTimeout(finish, POST_MARKER_DELAY_MS)
+      }
     } catch (err) {
       console.error('Failed to read AC log for load-complete marker:', err)
     }
