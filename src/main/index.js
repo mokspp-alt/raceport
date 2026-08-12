@@ -326,18 +326,22 @@ using System;
 using System.Runtime.InteropServices;
 public class RPKeys {
   [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
-  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
 }
 "@
+Add-Type -AssemblyName Microsoft.VisualBasic
 $logPath = "${CLICK_LOG_PATH.replace(/\\/g, '\\\\')}"
 "[$(Get-Date -Format o)] clickDriveButton script starting" | Out-File -Append $logPath
 
 $proc = Get-Process -Name "acs" -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($proc -and $proc.MainWindowHandle -ne [IntPtr]::Zero) {
-  $focused = [RPKeys]::SetForegroundWindow($proc.MainWindowHandle)
-  "[$(Get-Date -Format o)] found acs.exe pid=$($proc.Id), SetForegroundWindow returned $focused" | Out-File -Append $logPath
+if ($proc) {
+  try {
+    [Microsoft.VisualBasic.Interaction]::AppActivate($proc.Id)
+    "[$(Get-Date -Format o)] found acs.exe pid=$($proc.Id), AppActivate called" | Out-File -Append $logPath
+  } catch {
+    "[$(Get-Date -Format o)] AppActivate threw: $_" | Out-File -Append $logPath
+  }
 } else {
-  "[$(Get-Date -Format o)] acs.exe process or window handle not found" | Out-File -Append $logPath
+  "[$(Get-Date -Format o)] acs.exe process not found" | Out-File -Append $logPath
 }
 Start-Sleep -Milliseconds 300
 
