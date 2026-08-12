@@ -35,14 +35,12 @@ function hatDirection(value) {
 // on the real kiosk can be diagnosed from the log afterwards instead of
 // only live on-screen.
 //
-// DEBOUNCE_MS: real hardware bounces — a single physical press/rocker-tilt
-// flips the raw pressed/axis state back and forth for ~100-300ms, and each
-// flip is a legitimate edge as far as the edge-detection below is
-// concerned, so without this a single press fired the same action a dozen
-// times (confirmed via raceport-controller.log: bursts of identical
-// dispatches a few ms apart, matching a high-refresh-rate poll loop riding
-// the bounce). Ignoring repeats of the same action within this window
-// collapses each burst back down to one.
+// DEBOUNCE_MS: guards the hat-axis (назад/вперёд) and keyboard paths against
+// the same bounce buttons handle via the hold-latch below — a rocker-tilt
+// flips the raw axis reading back and forth for ~100-300ms, and each flip
+// is a legitimate edge as far as the direction-change check is concerned
+// (confirmed via raceport-controller.log: bursts of identical dispatches a
+// few ms apart, matching a high-refresh-rate poll loop riding the bounce).
 const DEBOUNCE_MS = 200
 const lastFired = {}
 
@@ -55,8 +53,17 @@ function fireAction(action, detail) {
   window.kiosk?.logController(`kiosk:${action} (${detail})`)
 }
 
+// How long a button must read continuously "not pressed" before a hold is
+// considered truly released — has to comfortably clear the ~100-300ms
+// bounce windows seen in raceport-controller.log, since a single bounce
+// gap shorter than this must NOT look like a release. Holding the button
+// for any length of time — clean or bouncing the whole way through — fires
+// the action exactly once, on the first press, and nothing again until a
+// stable release is seen.
+const RELEASE_SETTLE_MS = 150
+
 let adminHoldTimer = null
-let lastButtons = {}
+let buttonHold = {} // index -> { firedForThisHold, lastSeenPressedAt }
 let lastHatDirection = null
 let lastLoggedState = ''
 
@@ -74,34 +81,34 @@ function pollGamepad() {
       console.log(`[controller] ${gp.id}`, stateKey)
     }
 
+    const now = Date.now()
+
     gp.buttons.forEach((btn, index) => {
       const action = BUTTON_MAP[index]
       if (!action) return
 
-      const wasPressed = lastButtons[index] || false
-      const isPressed = btn.pressed
+      const hold = buttonHold[index] || (buttonHold[index] = { firedForThisHold: false, lastSeenPressedAt: 0 })
 
-      if (isPressed && !wasPressed) {
-        // Button just pressed
-        if (action === 'admin') {
-          adminHoldTimer = setTimeout(() => {
-            fireAction('admin', `button ${index} held`)
-            window.kiosk?.on('open-admin', () => {})
-          }, 3000)
-        } else {
-          fireAction(action, `button ${index}`)
+      if (btn.pressed) {
+        hold.lastSeenPressedAt = now
+        if (!hold.firedForThisHold) {
+          hold.firedForThisHold = true
+          if (action === 'admin') {
+            adminHoldTimer = setTimeout(() => {
+              fireAction('admin', `button ${index} held`)
+              window.kiosk?.on('open-admin', () => {})
+            }, 3000)
+          } else {
+            fireAction(action, `button ${index}`)
+          }
         }
-      }
-
-      if (!isPressed && wasPressed) {
-        // Button released
+      } else if (hold.firedForThisHold && now - hold.lastSeenPressedAt > RELEASE_SETTLE_MS) {
+        hold.firedForThisHold = false
         if (action === 'admin' && adminHoldTimer) {
           clearTimeout(adminHoldTimer)
           adminHoldTimer = null
         }
       }
-
-      lastButtons[index] = isPressed
     })
 
     const axisValue = gp.axes[HAT_AXIS_INDEX]
@@ -135,6 +142,11 @@ function onKeyDown(e) {
   // Don't hijack typing in the admin panel's text/password fields.
   const tag = e.target?.tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA') return
+
+  // e.repeat is the browser's own OS-level auto-repeat firing while a key
+  // is held — same "don't repeat while held" requirement as the gamepad
+  // buttons, and the browser already tells us which events those are.
+  if (e.repeat) return
 
   const action = KEY_MAP[e.key]
   if (action) fireAction(action, `key ${e.key}`)
