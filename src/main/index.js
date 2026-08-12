@@ -363,6 +363,10 @@ Start-Sleep -Milliseconds 200
 
   exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`, (err, stdout, stderr) => {
     if (err) console.error('Drive-button key-nav failed:', err, stderr)
+    // Runs after the click attempt, not in parallel with it — safe now that
+    // watchForLoadComplete always eventually calls back (marker or its own
+    // fallback), so this is no longer at risk of never firing at all.
+    watchForDriveStart()
   })
 }
 
@@ -373,7 +377,10 @@ Start-Sleep -Milliseconds 200
 // on the real kiosk (still needs checking directly) — without the fallback
 // below, the click just silently never fires if it doesn't, so it's back
 // for now even though it means clicking at a guessed moment in that case.
-function watchForLoadComplete(callback, fallbackMs = 180000) {
+// Temporarily 5s (not a realistic load time) to iterate on the click
+// mechanism itself quickly — raise this back up once that's confirmed
+// working, so it doesn't click a still-loading screen in normal use.
+function watchForLoadComplete(callback, fallbackMs = 5000) {
   let done = false
   let watcher = null
   let fallbackTimer = null
@@ -437,12 +444,10 @@ ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackC
       exec(`"${exePath}"`, { cwd: path.dirname(exePath) }, (err, stdout, stderr) => {
         if (err) console.error('acs.exe launch failed:', err, stderr)
       })
-      // Independent of the click: if the load-complete marker never shows up
-      // (confirm this is actually appearing in log.txt — if not, the click
-      // will never fire, chained or not) the click just silently never
-      // happens, but the paid countdown still needs to start on its own.
+      // watchForDriveStart runs from inside clickDriveButton, after the
+      // click is attempted — click always eventually fires (marker or its
+      // own fallback), so chaining no longer risks the timer never starting.
       watchForLoadComplete(clickDriveButton)
-      watchForDriveStart()
     } else {
       await shell.openExternal(`steam://rungameid/${steamAppId}`)
       watchForDriveStart()
