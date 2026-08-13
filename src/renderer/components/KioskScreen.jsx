@@ -17,12 +17,12 @@ export default function KioskScreen({ children, footer, backgroundImage }) {
       {backgroundImage && (
         <div style={{
           position: 'absolute', top: 100, left: 0, right: 0, height: '52%', zIndex: 0,
-          WebkitMaskImage: 'radial-gradient(ellipse 44% 28% at 50% 30%, black 0%, transparent 100%)',
-          maskImage: 'radial-gradient(ellipse 44% 28% at 50% 30%, black 0%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 44% 34% at 50% 30%, black 0%, rgba(0,0,0,0.6) 45%, transparent 100%)',
+          maskImage: 'radial-gradient(ellipse 44% 34% at 50% 30%, black 0%, rgba(0,0,0,0.6) 45%, transparent 100%)',
         }}>
           <img src={backgroundImage} alt="" style={{
             position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)',
-            width: '80%', height: '50%', objectFit: 'cover', objectPosition: 'center 30%', opacity: 0.8,
+            width: '96%', height: '60%', objectFit: 'contain', opacity: 0.8,
           }} />
         </div>
       )}
