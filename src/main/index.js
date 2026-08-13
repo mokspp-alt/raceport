@@ -844,6 +844,64 @@ ipcMain.handle('db-get-stats', (_, { from, to }) => db.getStats({ from, to }))
 
 const IMAGE_MIME = { '.png': 'png', '.jpg': 'jpeg', '.jpeg': 'jpeg', '.webp': 'webp' }
 
+// Lets the admin panel populate car/track/config dropdowns from whatever is
+// actually installed on the kiosk instead of the operator typing AC's
+// internal folder-name IDs (e.g. "ks_porsche_911_gt3_r") by hand.
+
+function readJsonLoose(filePath) {
+  try {
+    // AC's ui_*.json files are hand-authored and often contain // comments
+    // and trailing commas that break strict JSON.parse.
+    let text = fs.readFileSync(filePath, 'utf8')
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1)
+    text = text.replace(/\/\/.*$/gm, '').replace(/,(\s*[}\]])/g, '$1')
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+function listSubdirs(dir) {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name)
+  } catch {
+    return []
+  }
+}
+
+function listAcCars(acExePath) {
+  const carsDir = path.join(path.dirname(acExePath || AC_EXE_PATH), 'content', 'cars')
+  return listSubdirs(carsDir).map(id => {
+    const ui = readJsonLoose(path.join(carsDir, id, 'ui', 'ui_car.json'))
+    const skins = listSubdirs(path.join(carsDir, id, 'skins')).map(skinId => {
+      const skinUi = readJsonLoose(path.join(carsDir, id, 'skins', skinId, 'ui_skin.json'))
+      return { id: skinId, name: skinUi?.skinname || skinId }
+    })
+    return { id, name: ui?.name || id, skins }
+  }).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function listAcTracks(acExePath) {
+  const tracksDir = path.join(path.dirname(acExePath || AC_EXE_PATH), 'content', 'tracks')
+  return listSubdirs(tracksDir).map(id => {
+    const uiDir = path.join(tracksDir, id, 'ui')
+    // Multi-layout tracks have one subfolder per config under ui/, each with
+    // its own ui_track.json; single-layout tracks have ui_track.json
+    // directly in ui/ and no configs (CONFIG_TRACK then stays empty).
+    const configs = listSubdirs(uiDir).map(configId => {
+      const ui = readJsonLoose(path.join(uiDir, configId, 'ui_track.json'))
+      return { id: configId, name: ui?.name || configId }
+    })
+    const baseUi = readJsonLoose(path.join(uiDir, 'ui_track.json'))
+    return { id, name: baseUi?.name || id, configs }
+  }).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+ipcMain.handle('admin-list-ac-content', (_, { acExePath } = {}) => ({
+  cars: listAcCars(acExePath),
+  tracks: listAcTracks(acExePath),
+}))
+
 ipcMain.handle('admin-pick-image', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
