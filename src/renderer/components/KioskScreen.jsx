@@ -21,8 +21,7 @@ export default function KioskScreen({ children, footer, backgroundImage }) {
           maskImage: 'radial-gradient(ellipse 55% 35% at 50% 30%, black 15%, transparent 90%)',
         }}>
           <img src={backgroundImage} alt="" style={{
-            width: '100%', height: '50%', objectFit: 'contain', objectPosition: 'top', opacity: 0.8,
-            transform: 'translateY(-150px) scale(2.6)', transformOrigin: 'top center',
+            width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%', opacity: 0.8,
           }} />
         </div>
       )}

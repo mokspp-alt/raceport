@@ -15,6 +15,18 @@ const store = new Store({
   },
 })
 
+// electron-store's `defaults` only seed the file the first time it's
+// created — a kiosk that already has kiosk-data.json keeps its old games
+// list forever, so removing a preset from `defaults` above (nurburgring)
+// never reaches a kiosk that already ran. Prune it explicitly, once, so
+// existing installs catch up instead of needing a manual admin-panel edit.
+{
+  const games = store.get('games')
+  if (games.some(g => g.name === 'nurburgring')) {
+    store.set('games', games.filter(g => g.name !== 'nurburgring'))
+  }
+}
+
 function nextId(table) {
   const ids = store.get('_nextId')
   const id = ids[table]
