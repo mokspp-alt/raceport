@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('kiosk', {
   // Game
-  launchGame: (opts) => ipcRenderer.invoke('launch-game', opts), // opts: { steamAppId, carId, trackId, trackConfig, acExePath, durationSeconds }
+  launchGame: (opts) => ipcRenderer.invoke('launch-game', opts), // opts: { steamAppId, carId, trackId, trackConfig, skin, driftMode, sessionMode, carCount, acExePath, durationSeconds }
   addTime: (opts) => ipcRenderer.invoke('add-time', opts),
   closeGame: () => ipcRenderer.invoke('close-game'),
   getTimer: () => ipcRenderer.invoke('get-timer'),

@@ -131,9 +131,24 @@ const TIMER_MARKER_PATH = path.join(os.homedir(), 'Documents', 'Assetto Corsa', 
 // re-testing on the real Windows kiosk, which has no translation layer.
 const AI_OPPONENTS = 7
 
-function writeRaceIni({ model, skin, track, trackConfig, driftMode }) {
+// "Traffic" sessions reuse the same TYPE=1 Practice session as races — CSP's
+// AI Flood/wrong-way-driving behavior (cfg/extension/new_behaviour.ini,
+// [AI_FLOOD] ENABLED=1 and [WRONG_WAY] ALLOW_IN_PRACTICE=1 by default) isn't
+// gated on a special session type, it just needs AI opponent slots and a
+// track with its own traffic AI data (ai/fast_lane.ai). So the only real
+// difference from a race is fewer, calmer AI cars instead of a competitive
+// grid — everything else (session type, pit spawn, click-to-drive flow)
+// stays exactly as already tuned for races.
+const DEFAULT_TRAFFIC_CARS = 15
+
+function writeRaceIni({ model, skin, track, trackConfig, driftMode, sessionMode, carCount }) {
+  const isTraffic = sessionMode === 'traffic'
+  const opponentCount = isTraffic ? (Number(carCount) || DEFAULT_TRAFFIC_CARS) : AI_OPPONENTS
+  const aiLevel = isTraffic ? 70 : 90
+  const aiAggression = isTraffic ? 0 : 50
+
   let opponents = ''
-  for (let i = 1; i <= AI_OPPONENTS; i++) {
+  for (let i = 1; i <= opponentCount; i++) {
     opponents += `
 [CAR_${i}]
 MODEL=${model}
@@ -141,8 +156,8 @@ SKIN=
 MODEL_CONFIG=
 BALLAST=0
 RESTRICTOR=0
-AI_LEVEL=90
-AI_AGGRESSION=50
+AI_LEVEL=${aiLevel}
+AI_AGGRESSION=${aiAggression}
 `
   }
 
@@ -151,8 +166,8 @@ MODEL=${model}
 SKIN=${skin || ''}
 TRACK=${track}
 CONFIG_TRACK=${trackConfig || ''}
-AI_LEVEL=90
-CARS=${AI_OPPONENTS + 1}
+AI_LEVEL=${aiLevel}
+CARS=${opponentCount + 1}
 DRIFT_MODE=${driftMode || 0}
 FIXED_SETUP=0
 SOLO_RACE=0
@@ -739,13 +754,13 @@ function watchForLoadComplete(callback, fallbackMs = 180000) {
   }, fallbackMs)
 }
 
-ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackConfig, skin, driftMode, acExePath, durationSeconds }) => {
+ipcMain.handle('launch-game', async (event, { steamAppId, carId, trackId, trackConfig, skin, driftMode, acExePath, durationSeconds, sessionMode, carCount }) => {
   try {
     remainingSeconds = durationSeconds
     warningShown = false
 
     if (carId && trackId) {
-      writeRaceIni({ model: carId, skin, track: trackId, trackConfig, driftMode })
+      writeRaceIni({ model: carId, skin, track: trackId, trackConfig, driftMode, sessionMode, carCount })
       const exePath = acExePath || AC_EXE_PATH
       exec(`"${exePath}"`, { cwd: path.dirname(exePath) }, (err, stdout, stderr) => {
         if (err) console.error('acs.exe launch failed:', err, stderr)

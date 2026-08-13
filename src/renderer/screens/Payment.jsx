@@ -83,6 +83,8 @@ export default function Payment({ game, minutes, onSuccess, onBack }) {
           trackConfig: game?.track_config,
           skin: game?.skin,
           driftMode: game?.drift_mode,
+          sessionMode: game?.session_mode,
+          carCount: game?.traffic_car_count,
           acExePath: game?.ac_exe_path,
           durationSeconds: minutes * 60,
         }).then(() => onSuccess(session))
