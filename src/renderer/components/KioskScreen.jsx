@@ -22,7 +22,7 @@ export default function KioskScreen({ children, footer, backgroundImage }) {
         }}>
           <img src={backgroundImage} alt="" style={{
             position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)',
-            width: '288%', height: '180%', objectFit: 'contain', opacity: 0.8,
+            width: '331%', height: '207%', objectFit: 'contain', opacity: 0.8,
           }} />
         </div>
       )}
