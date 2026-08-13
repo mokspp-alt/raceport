@@ -99,7 +99,12 @@ export default function Admin({ onClose }) {
       <div style={{ width: '90vw', maxWidth: 1200, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>⚙️ Панель управления</div>
+          <div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem' }}>⚙️ Панель управления</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text2)', marginTop: '0.25rem' }}>
+              сборка: {__BUILD_INFO__.commit}{__BUILD_INFO__.date ? ` · ${__BUILD_INFO__.date.slice(0, 16).replace('T', ' ')}` : ''}
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button className="btn btn-secondary" onClick={() => window.kiosk?.restartKiosk()} style={{ fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}>
               🔄 Перезапуск
