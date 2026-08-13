@@ -5,7 +5,8 @@ import { pushTransaction } from '../../services/remoteSync'
 import { useControllerEvent } from '../hooks/useController'
 import { priceForMinutes } from '../pricing'
 import { gameLabel } from '../gameLabels'
-import logo from '../assets/brand/logo.png'
+import KioskScreen from '../components/KioskScreen'
+import KioskButton from '../components/KioskButton'
 
 // Test mode: no YooKassa keys needed
 const TEST_MODE = !import.meta.env.VITE_YOOKASSA_SHOP_ID ||
@@ -110,9 +111,7 @@ export default function Payment({ game, minutes, onSuccess, onBack }) {
   const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
   return (
-    <div className="screen fade-in" style={{ background: '#151518', flexDirection: 'column', gap: 40, padding: 50, fontFamily: 'var(--font-display)' }}>
-      <img src={logo} alt="Raceport" style={{ height: 84, objectFit: 'contain' }} />
-
+    <KioskScreen>
       {/* TEST MODE */}
       {state === 'test' && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
@@ -132,7 +131,7 @@ export default function Payment({ game, minutes, onSuccess, onBack }) {
             <div style={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'white' }}>
               {gameLabel(game)}
             </div>
-            <div style={{ fontSize: '1rem', color: '#8e8e93' }}>{minutes} мин · {amountRub} ₽</div>
+            <div style={{ fontSize: '1rem', color: '#8e8e93' }}>{minutes} мин · {amountRub} Р</div>
           </div>
 
           <div style={{
@@ -153,10 +152,8 @@ export default function Payment({ game, minutes, onSuccess, onBack }) {
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button className="btn btn-secondary" style={{ fontFamily: 'var(--font-display)' }} onClick={back}>← Назад</button>
-            <button className="btn btn-primary selected" style={{ fontFamily: 'var(--font-display)' }} onClick={handleTestConfirm}>
-              ✓ Подтвердить оплату (тест)
-            </button>
+            <KioskButton variant="secondary" keycap="esc" onClick={back}>назад</KioskButton>
+            <KioskButton variant="primary" keycap="enter" onClick={handleTestConfirm}>подтвердить оплату (тест)</KioskButton>
           </div>
         </div>
       )}
@@ -171,7 +168,7 @@ export default function Payment({ game, minutes, onSuccess, onBack }) {
             <div style={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'white' }}>
               {gameLabel(game)}
             </div>
-            <div style={{ fontSize: '1rem', color: '#8e8e93' }}>отсканируйте qr-код · {amountRub} ₽ · {minutes} мин</div>
+            <div style={{ fontSize: '1rem', color: '#8e8e93' }}>отсканируйте qr-код · {amountRub} Р · {minutes} мин</div>
           </div>
 
           <div style={{
@@ -195,7 +192,7 @@ export default function Payment({ game, minutes, onSuccess, onBack }) {
             Ожидаем оплату...
           </div>
 
-          <button className="btn btn-secondary" style={{ fontFamily: 'var(--font-display)' }} onClick={back}>← Назад</button>
+          <KioskButton variant="secondary" keycap="esc" onClick={back}>назад</KioskButton>
         </div>
       )}
 
@@ -215,14 +212,12 @@ export default function Payment({ game, minutes, onSuccess, onBack }) {
           <div style={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#ffe100' }}>Время истекло</div>
           <div style={{ fontSize: '1rem', color: '#8e8e93' }}>платёж не завершён</div>
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button className="btn btn-secondary" style={{ fontFamily: 'var(--font-display)' }} onClick={back}>← Назад</button>
-            <button className="btn btn-primary" style={{ fontFamily: 'var(--font-display)' }} onClick={() => { setState('creating'); setTimeLeft(600) }}>
-              Попробовать снова
-            </button>
+            <KioskButton variant="secondary" keycap="esc" onClick={back}>назад</KioskButton>
+            <KioskButton variant="primary" keycap="enter" onClick={() => { setState('creating'); setTimeLeft(600) }}>попробовать снова</KioskButton>
           </div>
         </div>
       )}
-    </div>
+    </KioskScreen>
   )
 }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { getAllGames, addGame, updateGame, deleteGame, getStats } from '../../services/db'
+import KioskButton from '../components/KioskButton'
 
 export default function Admin({ onClose }) {
   const [stage, setStage] = useState('login') // login | panel
@@ -48,8 +49,16 @@ export default function Admin({ onClose }) {
     return (
       <Overlay>
         <div style={{ textAlign: 'center', maxWidth: 400 }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', marginBottom: '2rem' }}>
-            🔐 Администратор
+          <div style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '2rem',
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            color: 'white',
+            marginBottom: '2rem',
+          }}>
+            🔒 Администратор
           </div>
           <form onSubmit={handleLogin}>
             <input
@@ -62,25 +71,22 @@ export default function Admin({ onClose }) {
                 width: '100%',
                 padding: '1rem',
                 fontSize: '1.2rem',
-                background: 'var(--bg2)',
-                border: `2px solid ${error ? 'var(--accent)' : 'var(--card-border)'}`,
-                borderRadius: 8,
+                fontFamily: 'var(--font-display)',
+                background: '#1c1c22',
+                border: `2px solid ${error ? '#e63946' : 'rgba(136,136,171,0.48)'}`,
+                borderRadius: 16,
                 color: 'white',
                 outline: 'none',
                 textAlign: 'center',
                 letterSpacing: '0.3em',
                 cursor: 'text',
-                marginBottom: '0.5rem',
+                marginBottom: '1.5rem',
               }}
             />
-            {error && <div style={{ color: 'var(--accent)', marginBottom: '1rem', fontSize: '0.9rem' }}>{error}</div>}
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
-                Отмена
-              </button>
-              <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                Войти
-              </button>
+            {error && <div style={{ color: '#e63946', marginBottom: '1rem', fontSize: '0.9rem' }}>{error}</div>}
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <KioskButton variant="secondary" keycap="esc" onClick={onClose}>отмена</KioskButton>
+              <KioskButton type="submit" variant="primary" keycap="enter">войти</KioskButton>
             </div>
           </form>
         </div>
@@ -278,7 +284,7 @@ function StatCard({ label, value }) {
   return (
     <div className="card" style={{ padding: '1.5rem', textAlign: 'center' }}>
       <div style={{ color: 'var(--text2)', fontSize: '0.9rem', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, color: 'var(--accent)' }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, color: '#ffe100' }}>
         {value}
       </div>
     </div>
@@ -298,7 +304,7 @@ function Overlay({ children }) {
       zIndex: 9000,
       animation: 'fadeIn 0.2s ease',
     }}>
-      <div className="card" style={{ padding: '2rem', maxWidth: '95vw' }}>
+      <div className="card" style={{ padding: '2rem', maxWidth: '95vw', fontFamily: 'var(--font-display)' }}>
         {children}
       </div>
     </div>

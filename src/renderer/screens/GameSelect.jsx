@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getActiveGames } from '../../services/db'
 import { syncGamesFromServer } from '../../services/remoteSync'
 import { useControllerEvent } from '../hooks/useController'
-import logo from '../assets/brand/logo.png'
+import KioskScreen from '../components/KioskScreen'
 import shashkiPreview from '../assets/games/shashki.png'
 import driftPreview from '../assets/games/drift.png'
 import rallyPreview from '../assets/games/rally.png'
@@ -67,9 +67,12 @@ export default function GameSelect({ onSelect }) {
   if (loading) return <LoadingScreen />
 
   return (
-    <div className="screen fade-in" style={{ background: '#151518', flexDirection: 'column', gap: 40, padding: 50 }}>
-      <img src={logo} alt="Raceport" style={{ height: 84, objectFit: 'contain' }} />
-
+    <KioskScreen footer={
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', color: '#8e8e93', textAlign: 'center' }}>
+        <div>при возникновении сложностей свяжитесь с нами</div>
+        <div>+7 993 441 07 01</div>
+      </div>
+    }>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
         <div style={{
           fontFamily: 'var(--font-display)',
@@ -155,12 +158,7 @@ export default function GameSelect({ onSelect }) {
           }} />
         ))}
       </div>
-
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', color: '#8e8e93', textAlign: 'center' }}>
-        <div>при возникновении сложностей свяжитесь с нами</div>
-        <div>+7 993 441 07 01</div>
-      </div>
-    </div>
+    </KioskScreen>
   )
 }
 
