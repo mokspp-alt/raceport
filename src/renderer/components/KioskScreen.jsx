@@ -15,14 +15,17 @@ export default function KioskScreen({ children, footer, backgroundImage }) {
       fontFamily: 'var(--font-display)',
     }}>
       {backgroundImage && (
+        // Mask box spans the full screen so the ellipse's own radius never
+        // exceeds the box and gets hard-clipped at its edge (it did when the
+        // box was a shorter sub-region starting below the top padding).
         <div style={{
-          position: 'absolute', top: 100, left: 0, right: 0, height: '52%', zIndex: 0,
-          WebkitMaskImage: 'radial-gradient(ellipse 44% 34% at 50% 30%, black 0%, rgba(0,0,0,0.6) 45%, transparent 100%)',
-          maskImage: 'radial-gradient(ellipse 44% 34% at 50% 30%, black 0%, rgba(0,0,0,0.6) 45%, transparent 100%)',
+          position: 'absolute', top: 0, left: 0, right: 0, height: '100%', zIndex: 0,
+          WebkitMaskImage: 'radial-gradient(ellipse 44% 17.7% at 50% 24.9%, black 0%, rgba(0,0,0,0.6) 45%, transparent 100%)',
+          maskImage: 'radial-gradient(ellipse 44% 17.7% at 50% 24.9%, black 0%, rgba(0,0,0,0.6) 45%, transparent 100%)',
         }}>
           <img src={backgroundImage} alt="" style={{
-            position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)',
-            width: '331%', height: '207%', objectFit: 'contain', opacity: 0.8,
+            position: 'absolute', top: '24.9%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: '331%', height: '107.6%', objectFit: 'contain', opacity: 0.8,
           }} />
         </div>
       )}
