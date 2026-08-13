@@ -452,8 +452,14 @@ function Overlay({ children }) {
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(0,0,0,0.92)',
-      backdropFilter: 'blur(8px)',
+      // No backdrop-filter here on purpose: Chromium/Electron can leave a
+      // stale blurred frame painted behind this overlay when the card below
+      // resizes (e.g. GameForm opening/closing changes the card's height)
+      // in frameless/alwaysOnTop windows — looks like a leftover "ghost" of
+      // the previous panel state stuck on screen. A plain opaque background
+      // avoids that compositor glitch entirely; at 0.92 alpha the dimming
+      // effect is barely different anyway.
+      background: 'rgba(0,0,0,0.95)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
