@@ -64,7 +64,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#0a0a0f' }}>
+    <div style={{ width: '100vw', height: '100vh', background: '#151518' }}>
       {screens[screen]}
       {adminOpen && (
         <Admin onClose={() => setAdminOpen(false)} />

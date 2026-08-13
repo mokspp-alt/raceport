@@ -1,6 +1,6 @@
 import logo from '../assets/brand/logo.png'
 
-export default function KioskScreen({ children, footer }) {
+export default function KioskScreen({ children, footer, backgroundImage }) {
   return (
     <div className="screen fade-in" style={{
       background: '#151518',
@@ -14,11 +14,23 @@ export default function KioskScreen({ children, footer }) {
       gap: 40,
       fontFamily: 'var(--font-display)',
     }}>
-      <img src={logo} alt="Raceport" style={{ height: 84, objectFit: 'contain' }} />
-      <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 40 }}>
+      {backgroundImage && (
+        <div style={{
+          position: 'absolute', top: 100, left: 0, right: 0, height: '52%', zIndex: 0,
+          WebkitMaskImage: 'radial-gradient(ellipse 55% 35% at 50% 30%, black 15%, transparent 90%)',
+          maskImage: 'radial-gradient(ellipse 55% 35% at 50% 30%, black 15%, transparent 90%)',
+        }}>
+          <img src={backgroundImage} alt="" style={{
+            width: '100%', height: '50%', objectFit: 'contain', objectPosition: 'top', opacity: 0.8,
+            transform: 'translateY(-150px) scale(2.6)', transformOrigin: 'top center',
+          }} />
+        </div>
+      )}
+      <img src={logo} alt="Raceport" style={{ height: 84, objectFit: 'contain', position: 'relative', zIndex: 1 }} />
+      <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 40, position: 'relative', zIndex: 1 }}>
         {children}
       </div>
-      {footer}
+      {footer && <div style={{ position: 'relative', zIndex: 1 }}>{footer}</div>}
     </div>
   )
 }

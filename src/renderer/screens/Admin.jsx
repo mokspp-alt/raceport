@@ -183,7 +183,11 @@ function GamesTab({ games, onRefresh }) {
       <div style={{ display: 'grid', gap: '0.75rem' }}>
         {games.map(game => (
           <div key={game.id} className="card" style={{ display: 'flex', alignItems: 'center', padding: '1rem 1.5rem', gap: '1rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>{game.emoji || '🎮'}</span>
+            <div style={{
+              width: 56, height: 36, borderRadius: 6, flexShrink: 0,
+              background: game.image_url ? `url(${game.image_url}) center/cover` : 'var(--bg2)',
+              border: '1px solid var(--card-border)',
+            }} />
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700 }}>{game.name}</div>
               <div style={{ color: 'var(--text2)', fontSize: '0.85rem' }}>
@@ -213,11 +217,16 @@ function GamesTab({ games, onRefresh }) {
 
 function GameForm({ game, onSave, onCancel }) {
   const [form, setForm] = useState({
-    name: '', steam_app_id: '', price_per_hour: 150, emoji: '🎮', image_url: '', car_id: '', track_id: '', track_config: '', ac_exe_path: '', active: true,
+    name: '', steam_app_id: '', price_per_hour: 150, image_url: '', car_id: '', track_id: '', track_config: '', ac_exe_path: '', active: true,
     ...game,
   })
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  async function pickImage() {
+    const dataUrl = await window.kiosk?.pickImage()
+    if (dataUrl) setForm(f => ({ ...f, image_url: dataUrl }))
+  }
 
   return (
     <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
@@ -226,8 +235,20 @@ function GameForm({ game, onSave, onCancel }) {
         <Field label="Название" value={form.name} onChange={set('name')} />
         <Field label="Steam App ID" value={form.steam_app_id} onChange={set('steam_app_id')} />
         <Field label="Цена ₽/час" value={form.price_per_hour} onChange={set('price_per_hour')} type="number" />
-        <Field label="Emoji" value={form.emoji} onChange={set('emoji')} />
-        <Field label="URL обложки" value={form.image_url} onChange={set('image_url')} style={{ gridColumn: 'span 2' }} />
+        <div style={{ gridColumn: 'span 3' }}>
+          <label style={{ display: 'block', color: 'var(--text2)', fontSize: '0.8rem', marginBottom: 4 }}>Фоновая картинка</label>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            {form.image_url && (
+              <div style={{
+                width: 80, height: 50, borderRadius: 6, overflow: 'hidden', flexShrink: 0,
+                background: `url(${form.image_url}) center/cover`, border: '1px solid var(--card-border)',
+              }} />
+            )}
+            <button type="button" className="btn btn-secondary" onClick={pickImage} style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}>
+              {form.image_url ? 'Заменить картинку' : 'Загрузить картинку'}
+            </button>
+          </div>
+        </div>
         <Field label="Car ID (для AC)" value={form.car_id} onChange={set('car_id')} placeholder="ferrari_f138" />
         <Field label="Track ID (для AC)" value={form.track_id} onChange={set('track_id')} placeholder="monza" />
         <Field label="Track Config" value={form.track_config} onChange={set('track_config')} placeholder="(пусто = основная)" />

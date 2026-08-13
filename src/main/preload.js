@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('kiosk', {
   adminLogin: (opts) => ipcRenderer.invoke('admin-login', opts),
   exitKiosk: () => ipcRenderer.invoke('admin-exit-kiosk'),
   restartKiosk: () => ipcRenderer.invoke('admin-restart'),
+  pickImage: () => ipcRenderer.invoke('admin-pick-image'),
 
   // Database
   db: {

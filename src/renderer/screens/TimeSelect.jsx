@@ -4,6 +4,7 @@ import { TIME_OPTIONS } from '../pricing'
 import { gameLabel } from '../gameLabels'
 import KioskScreen from '../components/KioskScreen'
 import KioskButton from '../components/KioskButton'
+import { gamePreview } from '../gamePreviews'
 
 export default function TimeSelect({ game, onSelect, onBack }) {
   const [selectedIndex, setSelectedIndex] = useState(2)
@@ -23,7 +24,7 @@ export default function TimeSelect({ game, onSelect, onBack }) {
   useControllerEvent('back', back)
 
   return (
-    <KioskScreen>
+    <KioskScreen backgroundImage={gamePreview(game)}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 50 }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
         <div style={{
