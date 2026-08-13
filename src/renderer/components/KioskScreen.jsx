@@ -20,8 +20,8 @@ export default function KioskScreen({ children, footer, backgroundImage }) {
         // box was a shorter sub-region starting below the top padding).
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, height: '100%', zIndex: 0,
-          WebkitMaskImage: 'radial-gradient(ellipse 44% 17.7% at 50% 24.9%, black 0%, rgba(0,0,0,0.6) 45%, transparent 100%)',
-          maskImage: 'radial-gradient(ellipse 44% 17.7% at 50% 24.9%, black 0%, rgba(0,0,0,0.6) 45%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 44% 20.4% at 50% 24.9%, black 0%, rgba(0,0,0,0.6) 28.5%, transparent 100%)',
+          maskImage: 'radial-gradient(ellipse 44% 20.4% at 50% 24.9%, black 0%, rgba(0,0,0,0.6) 28.5%, transparent 100%)',
         }}>
           <img src={backgroundImage} alt="" style={{
             position: 'absolute', top: '24.9%', left: '50%', transform: 'translate(-50%, -50%)',
