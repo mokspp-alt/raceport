@@ -589,19 +589,24 @@ if ($proc) {
   })
 }
 
-// Once LOAD_COMPLETE_MARKER shows up, the pit-lane screen has just started
-// fading in — give it a moment to actually finish rendering/animating
-// before sending keys, rather than hitting it the instant the log line
-// appears.
-const POST_MARKER_DELAY_MS = 5000
+// Once LOAD_COMPLETE_MARKER shows up, the splash screen is gone but a big
+// burst of shader/texture-cache log spam still follows before the pit-lane
+// screen is actually interactive (confirmed on real hardware: clicking a
+// fixed 5s after the marker fired while that spam was still being written —
+// the game hadn't reached the wheel prompt yet, so the click landed on
+// nothing). A fixed delay can't know how long that burst runs, so instead
+// wait for log.txt to go quiet — QUIET_POLLS_REQUIRED consecutive 1s polls
+// with no growth — which tracks the actual end of loading activity instead
+// of guessing a duration.
+const QUIET_POLLS_REQUIRED = 3
 
 // Watches acs.exe's log for LOAD_COMPLETE_MARKER instead of guessing a fixed
 // delay for the whole load. Only looks at bytes written after this watch
 // started, since log.txt accumulates across every session the kiosk runs,
 // not just this one. fallbackMs is a separate, longer safety net for the
-// case the marker line never appears at all (unconfirmed on real hardware —
-// still needs checking directly in log.txt) — a different failure mode than
-// the deliberate post-marker delay above.
+// case the marker line never appears at all — a different failure mode
+// than the quiescence wait above, which only starts once the marker has
+// already been found.
 function logWatchDebug(line) {
   try {
     fs.appendFileSync(CLICK_LOG_PATH, `[${new Date().toISOString()}] ${line}\n`)
@@ -610,13 +615,15 @@ function logWatchDebug(line) {
   }
 }
 
-function watchForLoadComplete(callback, fallbackMs = 90000) {
+function watchForLoadComplete(callback, fallbackMs = 180000) {
   let done = false
   let watcher = null
   let fallbackTimer = null
-  let postMarkerTimer = null
   let pollInterval = null
   let startOffset = 0
+  let markerSeen = false
+  let sizeAtLastCheck = 0
+  let stableCount = 0
 
   try {
     startOffset = fs.statSync(AC_LOG_PATH).size
@@ -630,14 +637,37 @@ function watchForLoadComplete(callback, fallbackMs = 90000) {
     done = true
     if (watcher) watcher.close()
     if (fallbackTimer) clearTimeout(fallbackTimer)
-    if (postMarkerTimer) clearTimeout(postMarkerTimer)
     if (pollInterval) clearInterval(pollInterval)
     logWatchDebug(`watchForLoadComplete: finished, reason=${reason}`)
     callback()
   }
 
+  // Once the marker's been seen, stop looking for it and just watch log.txt's
+  // size until it stops growing for QUIET_POLLS_REQUIRED consecutive polls —
+  // that's the actual end of the shader/texture-loading burst that follows
+  // the marker, however long it happens to run this particular session.
+  function checkQuiescence() {
+    try {
+      const size = fs.statSync(AC_LOG_PATH).size
+      if (size === sizeAtLastCheck) {
+        stableCount++
+        logWatchDebug(`watchForLoadComplete: quiet poll ${stableCount}/${QUIET_POLLS_REQUIRED} (size=${size})`)
+        if (stableCount >= QUIET_POLLS_REQUIRED) finish('marker-found-quiescent')
+      } else {
+        logWatchDebug(`watchForLoadComplete: still writing (${sizeAtLastCheck} -> ${size}), resetting quiet count`)
+        sizeAtLastCheck = size
+        stableCount = 0
+      }
+    } catch (err) {
+      logWatchDebug(`watchForLoadComplete: quiescence check read error: ${err.message}`)
+    }
+  }
+
   function checkForMarker() {
-    if (postMarkerTimer) return // already found, just waiting out the delay
+    if (markerSeen) {
+      checkQuiescence()
+      return
+    }
     try {
       const stat = fs.statSync(AC_LOG_PATH)
       // acs.exe truncates log.txt at the start of each run rather than
@@ -658,8 +688,12 @@ function watchForLoadComplete(callback, fallbackMs = 90000) {
       const found = buffer.includes(LOAD_COMPLETE_MARKER)
       logWatchDebug(`watchForLoadComplete: read ${length} new bytes, marker found=${found}`)
       if (found) {
-        if (fallbackTimer) clearTimeout(fallbackTimer)
-        postMarkerTimer = setTimeout(() => finish('marker-found'), POST_MARKER_DELAY_MS)
+        markerSeen = true
+        sizeAtLastCheck = stat.size
+        stableCount = 0
+        // fallbackTimer stays armed as a backstop in case log.txt never
+        // actually goes quiet (e.g. some unexpected steady stream of
+        // writes) — finish() is idempotent so whichever fires first wins.
       }
     } catch (err) {
       console.error('Failed to read AC log for load-complete marker:', err)
