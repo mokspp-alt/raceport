@@ -224,6 +224,7 @@ function GamesTab({ games, onRefresh }) {
 function GameForm({ game, onSave, onCancel }) {
   const [form, setForm] = useState({
     name: '', steam_app_id: '', price_per_hour: 150, image_url: '', car_id: '', skin: '', track_id: '', track_config: '', ac_exe_path: '', active: true,
+    session_mode: 'race', traffic_car_count: 15,
     ...game,
   })
   const [acContent, setAcContent] = useState({ cars: [], tracks: [] })
@@ -284,6 +285,25 @@ function GameForm({ game, onSave, onCancel }) {
         <div />
         <Field label="Трасса" listId="dl-tracks" options={acContent.tracks} value={form.track_id} onChange={set('track_id')} placeholder="monza" />
         <Field label="Режим трассы" listId="dl-track-configs" options={selectedTrack?.configs || []} value={form.track_config} onChange={set('track_config')} placeholder="(пусто = основная)" />
+        <div />
+        <div>
+          <label style={{ display: 'block', color: 'var(--text2)', fontSize: '0.8rem', marginBottom: 4 }}>Режим сессии</label>
+          <select
+            value={form.session_mode}
+            onChange={set('session_mode')}
+            style={{
+              width: '100%', padding: '0.6rem', background: 'var(--bg2)',
+              border: '1px solid var(--card-border)', borderRadius: 6, color: 'white',
+              fontSize: '0.95rem', outline: 'none', cursor: 'pointer',
+            }}
+          >
+            <option value="race">Гонка (AI соперники)</option>
+            <option value="traffic">Трафик</option>
+          </select>
+        </div>
+        {form.session_mode === 'traffic' && (
+          <Field label="Количество машин трафика" type="number" min="1" max="30" value={form.traffic_car_count} onChange={set('traffic_car_count')} />
+        )}
         <div />
         <Field label="Путь к acs.exe (если не стандартный)" value={form.ac_exe_path} onChange={set('ac_exe_path')} style={{ gridColumn: 'span 3' }} placeholder="C:\...Steam\steamapps\common\assettocorsa\acs.exe" />
       </div>
