@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, globalShortcut, screen } = require('electron')
+const { app, BrowserWindow, ipcMain, shell, globalShortcut, screen, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -807,6 +807,21 @@ ipcMain.handle('db-record-transaction', (_, opts) => db.recordTransaction(opts))
 ipcMain.handle('db-get-stats', (_, { from, to }) => db.getStats({ from, to }))
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
+
+const IMAGE_MIME = { '.png': 'png', '.jpg': 'jpeg', '.jpeg': 'jpeg', '.webp': 'webp' }
+
+ipcMain.handle('admin-pick-image', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+  })
+  if (result.canceled || !result.filePaths[0]) return null
+  const filePath = result.filePaths[0]
+  const mime = IMAGE_MIME[path.extname(filePath).toLowerCase()]
+  if (!mime) return null
+  const buffer = fs.readFileSync(filePath)
+  return `data:image/${mime};base64,${buffer.toString('base64')}`
+})
 
 ipcMain.handle('admin-login', async (_, { password }) => ({
   success: password === ADMIN_PASSWORD,

@@ -106,7 +106,7 @@ export default function GameRunning({ game, session, onEnd, onExtend }) {
       width: '100vw',
       height: '100vh',
       position: 'relative',
-      background: '#000',
+      background: '#151518',
       display: 'flex',
       alignItems: 'flex-start',
       justifyContent: 'flex-end',

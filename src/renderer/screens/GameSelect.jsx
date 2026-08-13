@@ -2,13 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { getActiveGames } from '../../services/db'
 import { syncGamesFromServer } from '../../services/remoteSync'
 import { useControllerEvent } from '../hooks/useController'
-import logo from '../assets/brand/logo.png'
-import shashkiPreview from '../assets/games/shashki.png'
-import driftPreview from '../assets/games/drift.png'
-import rallyPreview from '../assets/games/rally.png'
+import KioskScreen from '../components/KioskScreen'
+import { PREVIEWS } from '../gamePreviews'
 import { GAME_LABELS } from '../gameLabels'
-
-const PREVIEWS = { drift: driftPreview, shashki: shashkiPreview, rally: rallyPreview }
 
 function HintPill({ children }) {
   return (
@@ -67,9 +63,12 @@ export default function GameSelect({ onSelect }) {
   if (loading) return <LoadingScreen />
 
   return (
-    <div className="screen fade-in" style={{ background: '#151518', flexDirection: 'column', gap: 40, padding: 50 }}>
-      <img src={logo} alt="Raceport" style={{ height: 84, objectFit: 'contain' }} />
-
+    <KioskScreen footer={
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', color: '#8e8e93', textAlign: 'center' }}>
+        <div>при возникновении сложностей свяжитесь с нами</div>
+        <div>+7 993 441 07 01</div>
+      </div>
+    }>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
         <div style={{
           fontFamily: 'var(--font-display)',
@@ -79,7 +78,7 @@ export default function GameSelect({ onSelect }) {
           textTransform: 'uppercase',
           color: 'white',
         }}>
-          Выберите игру
+          Выберите режим
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'baseline', fontFamily: 'var(--font-display)', fontSize: '1rem', color: '#8e8e93' }}>
           <span>используйте</span>
@@ -155,12 +154,7 @@ export default function GameSelect({ onSelect }) {
           }} />
         ))}
       </div>
-
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', color: '#8e8e93', textAlign: 'center' }}>
-        <div>при возникновении сложностей свяжитесь с нами</div>
-        <div>+7 993 441 07 01</div>
-      </div>
-    </div>
+    </KioskScreen>
   )
 }
 
@@ -180,7 +174,6 @@ function LoadingScreen() {
 const DEMO_GAMES = [
   { id: 1, name: 'drift',       steam_app_id: '244210', car_id: 'bmw_m3_e92_drift',     track_id: 'shuto_revival_project_beta', price_per_hour: 150, emoji: '💨', color: '#1a1a2a' },
   { id: 2, name: 'shashki',     steam_app_id: '244210', car_id: 'hsrc_mby_rx8_scarlet', skin: '00_velocity_red', track_id: 'horizon_life_moscow', drift_mode: 0, price_per_hour: 150, emoji: '🏁', color: '#1a1a2a' },
-  { id: 3, name: 'nurburgring', steam_app_id: '244210', car_id: 'bmw_m4_akrapovic',     track_id: 'ks_nordschleife',           price_per_hour: 200, emoji: '🏔️', color: '#1a2a1a' },
   { id: 4, name: 'gt3',         steam_app_id: '244210', car_id: 'ks_porsche_911_gt3_r', track_id: 'ks_barcelona',             price_per_hour: 200, emoji: '🏆', color: '#2a1a0a' },
   { id: 5, name: 'f1',          steam_app_id: '244210', car_id: 'syn_ferrari_f175',        track_id: 'monaco_f1_2023',        price_per_hour: 250, emoji: '🏎️', color: '#c0392b' },
 ]

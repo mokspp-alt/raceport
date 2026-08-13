@@ -2,7 +2,9 @@ import { useState, useCallback } from 'react'
 import { useControllerEvent } from '../hooks/useController'
 import { TIME_OPTIONS } from '../pricing'
 import { gameLabel } from '../gameLabels'
-import logo from '../assets/brand/logo.png'
+import KioskScreen from '../components/KioskScreen'
+import KioskButton from '../components/KioskButton'
+import { gamePreview } from '../gamePreviews'
 
 export default function TimeSelect({ game, onSelect, onBack }) {
   const [selectedIndex, setSelectedIndex] = useState(2)
@@ -22,9 +24,8 @@ export default function TimeSelect({ game, onSelect, onBack }) {
   useControllerEvent('back', back)
 
   return (
-    <div className="screen fade-in" style={{ background: '#151518', flexDirection: 'column', gap: 40, padding: 50, fontFamily: 'var(--font-display)' }}>
-      <img src={logo} alt="Raceport" style={{ height: 84, objectFit: 'contain' }} />
-
+    <KioskScreen backgroundImage={gamePreview(game)}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 50 }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
         <div style={{
           fontFamily: 'var(--font-display)',
@@ -75,7 +76,7 @@ export default function TimeSelect({ game, onSelect, onBack }) {
                 fontWeight: 700,
                 color: isSelected ? 'white' : 'var(--text2)',
               }}>
-                {opt.price} ₽
+                {opt.price} Р
               </div>
             </div>
           )
@@ -83,11 +84,10 @@ export default function TimeSelect({ game, onSelect, onBack }) {
       </div>
 
       <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-        <button className="btn btn-secondary" style={{ fontFamily: 'var(--font-display)' }} onClick={onBack}>← Назад</button>
-        <button className="btn btn-primary" style={{ fontFamily: 'var(--font-display)' }} onClick={confirm}>
-          Оплатить {price} ₽ →
-        </button>
+        <KioskButton variant="secondary" keycap="esc" onClick={onBack}>назад</KioskButton>
+        <KioskButton variant="primary" keycap="enter" onClick={confirm}>оплатить {price} Р</KioskButton>
       </div>
-    </div>
+      </div>
+    </KioskScreen>
   )
 }
