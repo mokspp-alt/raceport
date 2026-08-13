@@ -863,11 +863,16 @@ const IMAGE_MIME = { '.png': 'png', '.jpg': 'jpeg', '.jpeg': 'jpeg', '.webp': 'w
 // actually installed on the kiosk instead of the operator typing AC's
 // internal folder-name IDs (e.g. "ks_porsche_911_gt3_r") by hand.
 
-function readJsonLoose(filePath) {
+// Async (fs.promises) throughout — kiosks with a large modded content
+// library (hundreds of cars/skins) made the sync version block Electron's
+// main process for seconds, freezing the whole app, not just this panel.
+const fsp = fs.promises
+
+async function readJsonLoose(filePath) {
   try {
     // AC's ui_*.json files are hand-authored and often contain // comments
     // and trailing commas that break strict JSON.parse.
-    let text = fs.readFileSync(filePath, 'utf8')
+    let text = await fsp.readFile(filePath, 'utf8')
     if (text.charCodeAt(0) === 0xfeff) text = text.slice(1)
     text = text.replace(/\/\/.*$/gm, '').replace(/,(\s*[}\]])/g, '$1')
     return JSON.parse(text)
@@ -876,45 +881,56 @@ function readJsonLoose(filePath) {
   }
 }
 
-function listSubdirs(dir) {
+async function listSubdirs(dir) {
   try {
-    return fs.readdirSync(dir, { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name)
+    const entries = await fsp.readdir(dir, { withFileTypes: true })
+    return entries.filter(e => e.isDirectory()).map(e => e.name)
   } catch {
     return []
   }
 }
 
-function listAcCars(acExePath) {
+async function listAcCars(acExePath) {
   const carsDir = path.join(path.dirname(acExePath || AC_EXE_PATH), 'content', 'cars')
-  return listSubdirs(carsDir).map(id => {
-    const ui = readJsonLoose(path.join(carsDir, id, 'ui', 'ui_car.json'))
-    const skins = listSubdirs(path.join(carsDir, id, 'skins')).map(skinId => {
-      const skinUi = readJsonLoose(path.join(carsDir, id, 'skins', skinId, 'ui_skin.json'))
+  const ids = await listSubdirs(carsDir)
+  const cars = await Promise.all(ids.map(async id => {
+    const [ui, skinIds] = await Promise.all([
+      readJsonLoose(path.join(carsDir, id, 'ui', 'ui_car.json')),
+      listSubdirs(path.join(carsDir, id, 'skins')),
+    ])
+    const skins = await Promise.all(skinIds.map(async skinId => {
+      const skinUi = await readJsonLoose(path.join(carsDir, id, 'skins', skinId, 'ui_skin.json'))
       return { id: skinId, name: skinUi?.skinname || skinId }
-    })
+    }))
     return { id, name: ui?.name || id, skins }
-  }).sort((a, b) => a.name.localeCompare(b.name))
+  }))
+  return cars.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-function listAcTracks(acExePath) {
+async function listAcTracks(acExePath) {
   const tracksDir = path.join(path.dirname(acExePath || AC_EXE_PATH), 'content', 'tracks')
-  return listSubdirs(tracksDir).map(id => {
+  const ids = await listSubdirs(tracksDir)
+  const tracks = await Promise.all(ids.map(async id => {
     const uiDir = path.join(tracksDir, id, 'ui')
     // Multi-layout tracks have one subfolder per config under ui/, each with
     // its own ui_track.json; single-layout tracks have ui_track.json
     // directly in ui/ and no configs (CONFIG_TRACK then stays empty).
-    const configs = listSubdirs(uiDir).map(configId => {
-      const ui = readJsonLoose(path.join(uiDir, configId, 'ui_track.json'))
-      return { id: configId, name: ui?.name || configId }
-    })
-    const baseUi = readJsonLoose(path.join(uiDir, 'ui_track.json'))
+    const configIds = await listSubdirs(uiDir)
+    const [configs, baseUi] = await Promise.all([
+      Promise.all(configIds.map(async configId => {
+        const ui = await readJsonLoose(path.join(uiDir, configId, 'ui_track.json'))
+        return { id: configId, name: ui?.name || configId }
+      })),
+      readJsonLoose(path.join(uiDir, 'ui_track.json')),
+    ])
     return { id, name: baseUi?.name || id, configs }
-  }).sort((a, b) => a.name.localeCompare(b.name))
+  }))
+  return tracks.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-ipcMain.handle('admin-list-ac-content', (_, { acExePath } = {}) => ({
-  cars: listAcCars(acExePath),
-  tracks: listAcTracks(acExePath),
+ipcMain.handle('admin-list-ac-content', async (_, { acExePath } = {}) => ({
+  cars: await listAcCars(acExePath),
+  tracks: await listAcTracks(acExePath),
 }))
 
 ipcMain.handle('admin-pick-image', async () => {
