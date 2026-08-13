@@ -223,20 +223,44 @@ function GamesTab({ games, onRefresh }) {
 
 function GameForm({ game, onSave, onCancel }) {
   const [form, setForm] = useState({
-    name: '', steam_app_id: '', price_per_hour: 150, image_url: '', car_id: '', track_id: '', track_config: '', ac_exe_path: '', active: true,
+    name: '', steam_app_id: '', price_per_hour: 150, image_url: '', car_id: '', skin: '', track_id: '', track_config: '', ac_exe_path: '', active: true,
     ...game,
   })
+  const [acContent, setAcContent] = useState({ cars: [], tracks: [] })
+  const [loadingContent, setLoadingContent] = useState(false)
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  async function loadAcContent() {
+    setLoadingContent(true)
+    const content = await window.kiosk?.listAcContent({ acExePath: form.ac_exe_path }).catch(() => null)
+    setAcContent(content || { cars: [], tracks: [] })
+    setLoadingContent(false)
+  }
+
+  useEffect(() => { loadAcContent() }, [])
 
   async function pickImage() {
     const dataUrl = await window.kiosk?.pickImage()
     if (dataUrl) setForm(f => ({ ...f, image_url: dataUrl }))
   }
 
+  const selectedCar = acContent.cars.find(c => c.id === form.car_id)
+  const selectedTrack = acContent.tracks.find(t => t.id === form.track_id)
+
   return (
     <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
-      <div style={{ fontWeight: 700, marginBottom: '1rem' }}>{game.id ? 'Редактировать' : 'Новая игра'}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+        <div style={{ fontWeight: 700 }}>{game.id ? 'Редактировать' : 'Новая игра'}</div>
+        <button type="button" className="btn btn-secondary" onClick={loadAcContent} disabled={loadingContent} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
+          {loadingContent ? '⏳ Читаем...' : '🔄 Обновить список машин/трасс'}
+        </button>
+      </div>
+      {acContent.cars.length === 0 && acContent.tracks.length === 0 && !loadingContent && (
+        <div style={{ color: 'var(--text2)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+          Не удалось прочитать content/ игры (путь не найден на этой машине) — можно ввести ID вручную.
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
         <Field label="Название" value={form.name} onChange={set('name')} />
         <Field label="Steam App ID" value={form.steam_app_id} onChange={set('steam_app_id')} />
@@ -255,9 +279,12 @@ function GameForm({ game, onSave, onCancel }) {
             </button>
           </div>
         </div>
-        <Field label="Car ID (для AC)" value={form.car_id} onChange={set('car_id')} placeholder="ferrari_f138" />
-        <Field label="Track ID (для AC)" value={form.track_id} onChange={set('track_id')} placeholder="monza" />
-        <Field label="Track Config" value={form.track_config} onChange={set('track_config')} placeholder="(пусто = основная)" />
+        <Field label="Машина" listId="dl-cars" options={acContent.cars} value={form.car_id} onChange={set('car_id')} placeholder="ferrari_f138" />
+        <Field label="Скин" listId="dl-skins" options={selectedCar?.skins || []} value={form.skin} onChange={set('skin')} placeholder="(пусто = по умолчанию)" />
+        <div />
+        <Field label="Трасса" listId="dl-tracks" options={acContent.tracks} value={form.track_id} onChange={set('track_id')} placeholder="monza" />
+        <Field label="Режим трассы" listId="dl-track-configs" options={selectedTrack?.configs || []} value={form.track_config} onChange={set('track_config')} placeholder="(пусто = основная)" />
+        <div />
         <Field label="Путь к acs.exe (если не стандартный)" value={form.ac_exe_path} onChange={set('ac_exe_path')} style={{ gridColumn: 'span 3' }} placeholder="C:\...Steam\steamapps\common\assettocorsa\acs.exe" />
       </div>
       <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
@@ -268,18 +295,24 @@ function GameForm({ game, onSave, onCancel }) {
   )
 }
 
-function Field({ label, style, ...props }) {
+function Field({ label, style, options, listId, ...props }) {
   return (
     <div style={style}>
       <label style={{ display: 'block', color: 'var(--text2)', fontSize: '0.8rem', marginBottom: 4 }}>{label}</label>
       <input
         {...props}
+        list={options ? listId : undefined}
         style={{
           width: '100%', padding: '0.6rem', background: 'var(--bg2)',
           border: '1px solid var(--card-border)', borderRadius: 6, color: 'white',
           fontSize: '0.95rem', outline: 'none', cursor: 'text',
         }}
       />
+      {options && (
+        <datalist id={listId}>
+          {options.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </datalist>
+      )}
     </div>
   )
 }
