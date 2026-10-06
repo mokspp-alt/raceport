@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drift Tuner — настройка подвески</title>
+<style>
+  :root {
+    --bg: #101216; --panel: #181b21; --line: #272b34; --text: #e8eaed; --dim: #8b92a0;
+    --accent: #ff4d2e; --good: #3ecf8e; --warn: #f5b942;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .app { display: grid; grid-template-columns: 1fr 360px; height: 100%; }
+  .stage { position: relative; min-width: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .hud { position: absolute; left: 16px; top: 12px; pointer-events: none; }
+  .hud .score { font-size: 34px; font-weight: 800; letter-spacing: .5px; }
+  .hud .combo { color: var(--accent); font-weight: 700; }
+  .hud .sub { color: var(--dim); font-size: 13px; }
+  .keys { position: absolute; left: 16px; bottom: 12px; color: var(--dim); font-size: 12px; pointer-events: none; }
+  .keys b { color: var(--text); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 4px; padding: 0 5px; font-weight: 600; }
+  .side { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; padding: 14px 16px 24px; }
+  h1 { font-size: 16px; margin: 0 0 10px; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--dim);
+    margin: 18px 0 8px; font-weight: 700; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+  button { background: #20242d; color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; margin-top: 8px; }
+  .row label { color: var(--text); }
+  .row output { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .row input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); margin: 2px 0 0; }
+  .hint { color: var(--dim); font-size: 12px; margin-top: 1px; grid-column: 1 / -1; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .metric { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  .metric span:last-child { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .advice { margin: 8px 0 0; padding: 0; list-style: none; }
+  .advice li { padding: 6px 8px; margin-top: 6px; background: #1d2129; border-left: 3px solid var(--warn); border-radius: 4px; font-size: 13px; }
+  .advice li.good { border-left-color: var(--good); }
+  .bar { height: 8px; background: #20242d; border-radius: 4px; overflow: hidden; margin-top: 3px; }
+  .bar i { display: block; height: 100%; background: var(--accent); width: 0; }
+  .wheels { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+  .wheels small { color: var(--dim); }
+  label.chk { display: flex; gap: 8px; align-items: center; margin-top: 10px; cursor: pointer; }
+  @media (max-width: 820px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; }
+    .side { border-left: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud">
+      <div class="score"><span id="score">0</span> <span class="combo" id="combo"></span></div>
+      <div class="sub">Рекорд: <span id="best">0</span> · Угол: <span id="angle">0</span>° · <span id="kmh">0</span> км/ч</div>
+    </div>
+    <div class="keys">
+      <b>W</b> газ · <b>S</b> тормоз · <b>A</b>/<b>D</b> руль · <b>Пробел</b> ручник · <b>Shift</b> рывок сцепления · <b>R</b> сброс · геймпад поддерживается
+    </div>
+  </div>
+
+  <aside class="side">
+    <h1>Настройка подвески для дрифта</h1>
+    <div class="presets" id="presets"></div>
+
+    <h2>Пружины и стабилизаторы</h2>
+    <div id="g-spring"></div>
+    <h2>Демпферы</h2>
+    <div id="g-damp"></div>
+    <h2>Геометрия</h2>
+    <div id="g-geo"></div>
+    <h2>Трансмиссия, тормоза, руль</h2>
+    <div id="g-misc"></div>
+    <label class="chk"><input type="checkbox" id="assist" checked> Помощник контрруля (сила зависит от кастера)</label>
+
+    <h2>Анализ настройки</h2>
+    <div id="metrics"></div>
+    <ul class="advice" id="advice"></ul>
+
+    <h2>Телеметрия</h2>
+    <div class="wheels" id="wheels"></div>
+    <div class="metric"><span>Крен кузова</span><span id="t-roll">0°</span></div>
+    <div class="metric"><span>Боковая перегрузка</span><span id="t-lat">0 g</span></div>
+    <div class="metric"><span>Скорость рыскания</span><span id="t-yaw">0 °/с</span></div>
+  </aside>
+</div>
+
+<script src="physics.js"></script>
+<script>
+(() => {
+  'use strict'
+  const { DEFAULTS, PRESETS, CAR, createState, step, analyze } = window.DriftPhysics
+
+  // ------------------------------------------------------------ параметры
+  const SLIDERS = {
+    'g-spring': [
+      ['springF', 'Пружины перед', 15, 140, 1, 'Н/мм', 'Жёстче — меньше крена, быстрее реакция'],
+      ['springR', 'Пружины зад', 15, 140, 1, 'Н/мм', 'Мягче зад — больше сцепления на выходе'],
+      ['arbF', 'Стабилизатор перед', 0, 400, 5, 'Н·м/°', 'Больше — передняя ось больше передаёт вес'],
+      ['arbR', 'Стабилизатор зад', 0, 400, 5, 'Н·м/°', 'Больше — задняя ось легче срывается'],
+    ],
+    'g-damp': [
+      ['dampF', 'Демпфер перед', 1, 10, 0.1, 'Н·с/мм', 'Выше — медленнее переносится вес при входе'],
+      ['dampR', 'Демпфер зад', 1, 10, 0.1, 'Н·с/мм', 'Выше — резче срыв, ниже — плавнее'],
+    ],
+    'g-geo': [
+      ['rideHeight', 'Клиренс', 70, 160, 1, 'мм', 'Ниже — ниже центр тяжести'],
+      ['camberF', 'Развал перед', -8, 0, 0.1, '°', 'Оптимум ≈ −3…−7° — держит колесо при крене'],
+      ['camberR', 'Развал зад', -5, 0, 0.1, '°', 'Меньше развал — задние легче скользят'],
+      ['toeF', 'Схождение перед', -1, 1, 0.05, '°', 'Минус (развал) — острее вход'],
+      ['toeR', 'Схождение зад', -0.5, 1, 0.05, '°', 'Плюс — стабильнее, но хуже угол'],
+    ],
+    'g-misc': [
+      ['caster', 'Кастер', 3, 9, 0.5, '°', 'Сильнее самовозврат руля — помощник держит угол надёжнее'],
+      ['diffLock', 'Блокировка диффа', 0, 100, 1, '%', '100% — оба колеса крутятся одинаково, как нужно для дрифта'],
+      ['brakeBias', 'Баланс тормозов (перед)', 30, 80, 1, '%', 'Меньше — задние легче блокировать'],
+    ],
+  }
+  const LABELS = Object.fromEntries(Object.values(SLIDERS).flat().map((s) => [s[0], s]))
+
+  let params = { ...DEFAULTS }
+  const outputs = {}, inputs = {}
+
+  for (const [groupId, items] of Object.entries(SLIDERS)) {
+    const host = document.getElementById(groupId)
+    for (const [key, label, min, max, stepV, unit, hint] of items) {
+      const row = document.createElement('div')
+      row.className = 'row'
+      row.innerHTML = `<label for="p-${key}">${label}</label><output id="o-${key}"></output>
+        <input id="p-${key}" type="range" min="${min}" max="${max}" step="${stepV}">
+        <div class="hint">${hint}</div>`
+      host.appendChild(row)
+      const input = row.querySelector('input')
+      inputs[key] = input
+      outputs[key] = row.querySelector('output')
+      input.addEventListener('input', () => {
+        params[key] = parseFloat(input.value)
+        refreshOutputs()
+        clearPresetHighlight()
+      })
+      input.addEventListener('keydown', (e) => e.stopPropagation()) // стрелки/WASD не должны двигать ползунок во время езды
+    }
+  }
+  function refreshOutputs() {
+    for (const key of Object.keys(inputs)) {
+      const unit = LABELS[key][5]
+      const v = params[key]
+      outputs[key].textContent = `${Number.isInteger(v) ? v : v.toFixed(2).replace(/0$/, '')} ${unit}`
+    }
+    renderAnalysis()
+  }
+  function applyParams(p) {
+    params = { ...DEFAULTS, ...p }
+    for (const key of Object.keys(inputs)) inputs[key].value = params[key]
+    refreshOutputs()
+  }
+
+  const presetsEl = document.getElementById('presets')
+  const presetBtns = {}
+  for (const [id, pr] of Object.entries(PRESETS)) {
+    const b = document.createElement('button')
+    b.textContent = pr.name
+    b.addEventListener('click', () => {
+      applyParams(pr.params)
+      clearPresetHighlight()
+      b.classList.add('on')
+      resetCar()
+    })
+    presetsEl.appendChild(b)
+    presetBtns[id] = b
+  }
+  function clearPresetHighlight() { Object.values(presetBtns).forEach((b) => b.classList.remove('on')) }
+
+  // ------------------------------------------------------------ анализ
+  const metricsEl = document.getElementById('metrics')
+  const adviceEl = document.getElementById('advice')
+  function renderAnalysis() {
+    const a = analyze(params)
+    const rows = [
+      ['Передача крена на перед (LLTD)', `${(a.lltdF * 100).toFixed(0)}% (вес на перед ${(a.staticF * 100).toFixed(0)}%)`],
+      ['Крен при 1 g', `${a.rollDegPerG.toFixed(1)}°`],
+      ['Демпфирование крена ζ', a.zeta.toFixed(2)],
+      ['Высота центра тяжести', `${(a.cgHeight * 100).toFixed(0)} см`],
+    ]
+    metricsEl.innerHTML = rows.map(([k, v]) => `<div class="metric"><span>${k}</span><span>${v}</span></div>`).join('')
+
+    const tips = []
+    const d = a.lltdF - a.staticF
+    if (d > 0.08) tips.push(['Передняя ось передаёт слишком много веса — будет недостаточная поворачиваемость. Смягчите перед или усилите зад.'])
+    else if (d < -0.1) tips.push(['Задняя ось нагружается сильнее — машина легко срывает зад, но может быть нервной на выходе.'])
+    else tips.push(['Баланс передачи веса близок к нейтральному.', true])
+    if (a.rollDegPerG > 3.2) tips.push(['Большой крен: реакция вялая в смене направления. Добавьте жёсткости.'])
+    else if (a.rollDegPerG < 1.2) tips.push(['Очень жёсткая подвеска: быстрая реакция, но мало обратной связи и сцепления на неровностях.'])
+    if (a.zeta < 0.35) tips.push(['Демпферы слабые — кузов раскачивается в «маятнике». Повысьте демпфирование.'])
+    else if (a.zeta > 0.9) tips.push(['Демпферы очень жёсткие — вес переносится с запаздыванием, срыв резкий.'])
+    if (params.camberF > -2.5) tips.push(['Мало развала спереди: колесо теряет пятно контакта при крене.'])
+    if (params.diffLock < 60) tips.push(['Открытый дифф — внутреннее колесо буксует, заднюю ось не вывести в стабильный занос.'])
+    if (params.toeR > 0.5) tips.push(['Большое схождение сзади сильно гасит угол заноса.'])
+    adviceEl.innerHTML = tips.map(([t, good]) => `<li class="${good ? 'good' : ''}">${t}</li>`).join('')
+  }
+
+  // ------------------------------------------------------------ управление
+  const keys = new Set()
+  addEventListener('keydown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') return
+    keys.add(e.code)
+    if (e.code === 'KeyR') resetCar()
+    if (['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault()
+  })
+  addEventListener('keyup', (e) => keys.delete(e.code))
+  addEventListener('blur', () => keys.clear())
+
+  let kbSteer = 0, kbThr = 0, kbBrk = 0
+  function readInput(dt) {
+    const l = keys.has('KeyA') || keys.has('ArrowLeft'), r = keys.has('KeyD') || keys.has('ArrowRight')
+    const tgt = (l ? 1 : 0) - (r ? 1 : 0)
+    kbSteer += (tgt - kbSteer) * Math.min(1, dt * (tgt === 0 ? 10 : 7))
+    kbThr += (((keys.has('KeyW') || keys.has('ArrowUp')) ? 1 : 0) - kbThr) * Math.min(1, dt * 10)
+    kbBrk += (((keys.has('KeyS') || keys.has('ArrowDown')) ? 1 : 0) - kbBrk) * Math.min(1, dt * 12)
+    const inp = { steer: kbSteer, throttle: kbThr, brake: kbBrk, handbrake: keys.has('Space') ? 1 : 0,
+      kick: 0, assist: document.getElementById('assist').checked }
+    if (keys.has('ShiftLeft') || keys.has('ShiftRight')) {
+      if (!readInput.shiftHeld) inp.kick = 1
+      readInput.shiftHeld = true
+    } else readInput.shiftHeld = false
+
+    const gp = (navigator.getGamepads && navigator.getGamepads().find((g) => g)) || null
+    if (gp) {
+      const ax = gp.axes[0] || 0
+      if (Math.abs(ax) > 0.08) inp.steer = -ax
+      const rt = gp.buttons[7] ? gp.buttons[7].value : 0, lt = gp.buttons[6] ? gp.buttons[6].value : 0
+      if (rt > 0.05) inp.throttle = Math.max(inp.throttle, rt)
+      if (lt > 0.05) inp.brake = Math.max(inp.brake, lt)
+      if (gp.buttons[0] && gp.buttons[0].pressed) inp.handbrake = 1
+      const rb = gp.buttons[5] && gp.buttons[5].pressed
+      if (rb && !readInput.rbHeld) inp.kick = 1
+      readInput.rbHeld = rb
+    }
+    return inp
+  }
+
+  // ------------------------------------------------------------ симуляция
+  let car = createState(0)
+  let marks = []                // следы шин: массив сегментов {x1,y1,x2,y2,a}
+  let smoke = []
+  const score = { total: 0, best: 0, current: 0, combo: 1, driftTime: 0, offTime: 0 }
+  try { score.best = Number(localStorage.getItem('driftTunerBest')) || 0 } catch (e) { /* без localStorage — ок */ }
+
+  function resetCar() {
+    car = createState(0)
+    marks = []; smoke = []
+    kbSteer = kbThr = kbBrk = 0
+    Object.assign(score, { total: 0, current: 0, combo: 1, driftTime: 0, offTime: 0 })
+  }
+
+  function updateScore(dt) {
+    const ang = Math.abs(car.beta)
+    const drifting = car.speed > 8 && ang > 12 && ang < 90 && car.vx > 0
+    if (drifting) {
+      score.driftTime += dt
+      score.offTime = 0
+      score.combo = Math.min(5, 1 + Math.floor(score.driftTime / 2.5))
+      score.current += car.speed * 3.6 * Math.min(ang, 60) / 60 * score.combo * dt
+    } else {
+      score.offTime += dt
+      if (score.offTime > 0.6 && score.current > 0) {
+        if (ang < 90 || car.speed < 8) score.total += score.current // банкуем, если не раскрутило
+        score.current = 0; score.driftTime = 0; score.combo = 1
+      }
+    }
+    if (Math.abs(car.beta) >= 90 || (car.vx < 0 && car.speed > 4)) { // раскрутило — очки сгорают
+      score.current = 0; score.driftTime = 0; score.combo = 1
+    }
+    const sum = Math.floor(score.total + score.current)
+    if (sum > score.best) {
+      score.best = sum
+      try { localStorage.setItem('driftTunerBest', String(sum)) } catch (e) { /* ignore */ }
+    }
+  }
+
+  // ------------------------------------------------------------ отрисовка
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d')
+  const PPM = 11 // пикселей на метр
+  function resize() {
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr)
+  }
+  addEventListener('resize', resize)
+
+  const wheelWorld = (i) => {
+    const px = i < 2 ? CAR.a : -CAR.b, py = (i % 2 === 0 ? 1 : -1) * CAR.track / 2
+    const c = Math.cos(car.psi), s = Math.sin(car.psi)
+    return [car.x + px * c - py * s, car.y + px * s + py * c]
+  }
+  const lastWheel = [null, null, null, null]
+
+  function recordMarks(dt) {
+    for (let i = 0; i < 4; i++) {
+      const [wx, wy] = wheelWorld(i)
+      const slip = car.sat[i] > 0.92 && car.speed > 3
+      const prev = lastWheel[i]
+      if (prev && slip) marks.push({ x1: prev[0], y1: prev[1], x2: wx, y2: wy, a: Math.min(0.55, (car.sat[i] - 0.85) * 3) })
+      lastWheel[i] = [wx, wy]
+      if (slip && i >= 2 && Math.random() < 0.5)
+        smoke.push({ x: wx, y: wy, vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5, life: 1, r: 0.6 + Math.random() * 0.6 })
+    }
+    if (marks.length > 4000) marks.splice(0, marks.length - 4000)
+    for (const p of smoke) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * 0.9; p.r += dt * 1.8 }
+    smoke = smoke.filter((p) => p.life > 0)
+  }
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1
+    const W = cv.width / dpr, H = cv.height / dpr
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.fillStyle = '#14171c'; ctx.fillRect(0, 0, W, H)
+
+    // мир → экран: камера следует за машиной, ось Y мира смотрит вверх
+    const cx = W / 2, cy = H / 2
+    const toS = (x, y) => [cx + (x - car.x) * PPM, cy - (y - car.y) * PPM]
+
+    // сетка 10 м
+    const grid = 10, x0 = Math.floor((car.x - cx / PPM) / grid) * grid, y0 = Math.floor((car.y - cy / PPM) / grid) * grid
+    ctx.lineWidth = 1; ctx.strokeStyle = '#1e222a'; ctx.beginPath()
+    for (let gx = x0; gx < car.x + cx / PPM + grid; gx += grid) { const [sx] = toS(gx, 0); ctx.moveTo(sx, 0); ctx.lineTo(sx, H) }
+    for (let gy = y0; gy < car.y + cy / PPM + grid; gy += grid) { const [, sy] = toS(0, gy); ctx.moveTo(0, sy); ctx.lineTo(W, sy) }
+    ctx.stroke()
+
+    // следы
+    ctx.lineCap = 'round'; ctx.lineWidth = 0.28 * PPM
+    for (const m of marks) {
+      const [ax, ay] = toS(m.x1, m.y1), [bx, by] = toS(m.x2, m.y2)
+      if ((ax < -50 && bx < -50) || (ax > W + 50 && bx > W + 50) || (ay < -50 && by < -50) || (ay > H + 50 && by > H + 50)) continue
+      ctx.strokeStyle = `rgba(8,8,10,${m.a})`
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke()
+    }
+
+    // дым
+    for (const p of smoke) {
+      const [sx, sy] = toS(p.x, p.y)
+      ctx.fillStyle = `rgba(210,214,222,${p.life * 0.16})`
+      ctx.beginPath(); ctx.arc(sx, sy, p.r * PPM, 0, Math.PI * 2); ctx.fill()
+    }
+
+    // машина (мир: ψ против часовой; на экране Y инвертирован)
+    ctx.save()
+    const [mx, my] = toS(car.x, car.y)
+    ctx.translate(mx, my); ctx.rotate(-car.psi)
+    // тени нагрузок на колёса и колёса
+    const wheels = [[CAR.a, CAR.track / 2], [CAR.a, -CAR.track / 2], [-CAR.b, CAR.track / 2], [-CAR.b, -CAR.track / 2]]
+    for (let i = 0; i < 4; i++) {
+      const [px, py] = wheels[i]
+      ctx.save()
+      ctx.translate(px * PPM, -py * PPM)
+      if (i < 2) ctx.rotate(-car.delta)
+      const load = Math.min(1, (car.fz[i] || 3000) / 6000)
+      ctx.fillStyle = car.sat[i] > 0.92 ? '#ff7a5c' : `rgb(${40 + load * 60},${40 + load * 60},${46 + load * 60})`
+      ctx.fillRect(-0.34 * PPM, -0.12 * PPM, 0.68 * PPM, 0.24 * PPM + 0)
+      ctx.restore()
+    }
+    ctx.fillStyle = '#d9402a'
+    const len = 4.4, wid = 1.78
+    roundRect(ctx, -len / 2 * PPM + 0.15 * PPM, -wid / 2 * PPM, len * PPM, wid * PPM, 0.5 * PPM); ctx.fill()
+    ctx.fillStyle = '#1c1f25'
+    roundRect(ctx, -0.9 * PPM, -0.7 * PPM, 1.7 * PPM, 1.4 * PPM, 0.3 * PPM); ctx.fill()
+    ctx.fillStyle = '#f2f2f2'
+    ctx.fillRect((len / 2 - 0.35) * PPM, -0.55 * PPM, 0.12 * PPM, 0.3 * PPM)
+    ctx.fillRect((len / 2 - 0.35) * PPM, 0.25 * PPM, 0.12 * PPM, 0.3 * PPM)
+    ctx.restore()
+
+    // вектор скорости
+    const vwx = car.vx * Math.cos(car.psi) - car.vy * Math.sin(car.psi)
+    const vwy = car.vx * Math.sin(car.psi) + car.vy * Math.cos(car.psi)
+    if (car.speed > 2) {
+      ctx.strokeStyle = 'rgba(62,207,142,.85)'; ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx + vwx * PPM * 0.7, my - vwy * PPM * 0.7); ctx.stroke()
+    }
+  }
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r)
+    c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath()
+  }
+
+  // ------------------------------------------------------------ HUD + телеметрия
+  const el = (id) => document.getElementById(id)
+  const wheelsEl = el('wheels')
+  const wheelNames = ['Л-перед', 'П-перед', 'Л-зад', 'П-зад']
+  wheelsEl.innerHTML = wheelNames.map((n, i) =>
+    `<div><small>${n} · <span id="w-fz${i}">0</span> Н · α <span id="w-al${i}">0</span>°</small><div class="bar"><i id="w-bar${i}"></i></div></div>`).join('')
+
+  function updateHud() {
+    el('score').textContent = Math.floor(score.total + score.current)
+    el('combo').textContent = score.combo > 1 && score.current > 0 ? `×${score.combo}` : ''
+    el('best').textContent = score.best
+    el('angle').textContent = Math.abs(car.beta).toFixed(0)
+    el('kmh').textContent = (car.speed * 3.6).toFixed(0)
+    el('t-roll').textContent = `${car.rollDeg.toFixed(1)}°`
+    el('t-lat').textContent = `${Math.abs(car.latG).toFixed(2)} g`
+    el('t-yaw').textContent = `${(car.r / window.DriftPhysics.DEG).toFixed(0)} °/с`
+    for (let i = 0; i < 4; i++) {
+      el(`w-fz${i}`).textContent = Math.round(car.fz[i] || 0)
+      el(`w-al${i}`).textContent = (car.alpha[i] || 0).toFixed(0)
+      el(`w-bar${i}`).style.width = `${Math.min(100, (car.sat[i] || 0) * 100)}%`
+    }
+  }
+
+  // ------------------------------------------------------------ главный цикл
+  const DT = 1 / 300
+  let acc = 0, last = performance.now(), hudTick = 0
+  function frame(now) {
+    const frameDt = Math.min(0.05, (now - last) / 1000)
+    last = now
+    acc += frameDt
+    const inp = readInput(frameDt)
+    let n = 0
+    while (acc >= DT && n < 30) {
+      step(car, inp, params, DT)
+      inp.kick = 0
+      acc -= DT; n++
+    }
+    if (n >= 30) acc = 0
+    updateScore(frameDt)
+    recordMarks(frameDt)
+    draw()
+    if ((hudTick += frameDt) > 0.05) { hudTick = 0; updateHud() }
+    requestAnimationFrame(frame)
+  }
+
+  resize()
+  applyParams(DEFAULTS)
+  presetBtns.base.classList.add('on')
+  requestAnimationFrame(frame)
+})()
+</script>
+</body>
+</html>
