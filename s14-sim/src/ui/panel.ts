@@ -59,7 +59,7 @@ export class Panel {
     const id = `p-${p.key}`;
     el.innerHTML = `
       <div class="head">
-        <label for="${id}">${p.label}${p.later ? ' <span class="tag">этап 2–3</span>' : ''}</label>
+        <label for="${id}">${p.label}${p.later ? ' <span class="tag">этап 3</span>' : ''}</label>
         <span class="val"><input type="number" class="num" min="${p.min}" max="${p.max}" step="${p.step}"><span class="unit">${p.unit}</span></span>
       </div>
       <input id="${id}" type="range" min="${p.min}" max="${p.max}" step="${p.step}">

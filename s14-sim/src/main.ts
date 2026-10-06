@@ -3,10 +3,12 @@ import { vehicle } from './config/vehicle';
 import { compute, type Computed } from './physics/model';
 import { SuspensionScene, type CameraPreset } from './scene/SuspensionScene';
 import { Panel } from './ui/panel';
+import { TireCharts } from './ui/tireCharts';
 
 const panel = new Panel(document.getElementById('panel')!);
 const view = new SuspensionScene(document.getElementById('view')!, vehicle);
 const hud = document.getElementById('hud')!;
+const tireCharts = new TireCharts(document.getElementById('charts')!, vehicle, () => panel.state);
 
 document.querySelectorAll<HTMLButtonElement>('[data-cam]').forEach((b) => {
   b.onclick = () => view.setCamera(b.dataset.cam as CameraPreset);
@@ -45,5 +47,19 @@ function update(): void {
   renderHud(m);
 }
 
-panel.onChange(update);
+let tireKey = '';
+function updateTire(): void {
+  const s = panel.state;
+  const k = [s.frontPressureBar, s.rearPressureBar, s.frontCamberDeg, s.rearCamberDeg].join();
+  if (k !== tireKey) {
+    tireKey = k;
+    tireCharts.update();
+  }
+}
+
+panel.onChange(() => {
+  update();
+  updateTire();
+});
+updateTire();
 update();
