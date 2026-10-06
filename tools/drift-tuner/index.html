@@ -484,7 +484,8 @@
       readInput.shiftHeld = true
     } else readInput.shiftHeld = false
 
-    const gp = (navigator.getGamepads && navigator.getGamepads().find((g) => g)) || null
+    let gp = null
+    try { gp = (navigator.getGamepads && navigator.getGamepads().find((g) => g)) || null } catch (e) { /* геймпад запрещён политикой (превью/iframe) — играем с клавиатуры */ }
     if (gp) {
       const ax = gp.axes[0] || 0
       if (Math.abs(ax) > 0.08) inp.steer = -ax
