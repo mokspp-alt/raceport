@@ -52,7 +52,7 @@ describe('анализ', () => {
     const r = await sensitivity(vehicle, tireParams, S);
     console.log('sensitivity, мс:', (performance.now() - t0).toFixed(0), 'baseStar', r.baseStar);
     for (const x of r.rows) console.log(x.label.padEnd(22), 'dβ*', x.dStar?.toFixed(2) ?? '–', ' dT', x.dTorque?.toFixed(2) ?? '–');
-    expect(r.rows.length).toBe(9);
+    expect(r.rows.length).toBe(13);
   }, 30000);
 });
 

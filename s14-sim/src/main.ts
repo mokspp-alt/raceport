@@ -92,7 +92,7 @@ function verdict(T: number, slipSign: number): string {
     : '<span class="verdict warn">докручивает контрруль сам (нужно удерживать)</span>';
 }
 
-function renderDrift(ev: Eval | null, sol: SteadyResult | null, auto: boolean): void {
+function renderDrift(ev: Eval | null, sol: SteadyResult | null, auto: boolean, m0: Computed): void {
   if (!ev) {
     driftEl.innerHTML = `<h3>Установившийся занос</h3><p class="warn">${sol?.reason ?? 'нет решения для этих параметров'}</p>`;
     return;
@@ -116,6 +116,7 @@ function renderDrift(ev: Eval | null, sol: SteadyResult | null, auto: boolean): 
     </table>
     <p>Руль: <b>${f(ev.rackMm / vehicle.front.rackMmPerSteeringDeg, 0)}°</b> (рейка ${f(ev.rackMm)} мм) ·
        рыскание <b>${f(ev.r, 2)}</b> рад/с · радиус <b>${Number.isFinite(R) ? f(R, 0) : '∞'}</b> м</p>
+    <p>ЦТ: высота <b>${f(m0.cg.zMm, 0)}</b> мм, развесовка <b>${f(s.frontWeightPct, 1)}/${f(100 - s.frontWeightPct, 1)}</b> %</p>
     <p>Поперечное ускорение <b>${f(ev.ay / 9.81, 2)}</b> g · крен <b>${f(ev.rollDeg, 1)}°</b> ·
        ускорение вдоль скорости <b>${f(ev.aTang, 2)}</b> м/с²</p>
     <p>Момент от дороги на руле: <b>${f(ev.steer.roadTorqueNm, 1)} Н·м</b> (в руке с ГУР ≈ ${f(ev.steer.handTorqueNm, 1)} Н·м)<br>
@@ -213,6 +214,10 @@ function update(): void {
         rearPressureBar: s.rearPressureBar,
         rearToeDeg: s.rearToeDeg,
         rearCamberDeg: s.rearCamberDeg,
+        frontRideHeightMm: s.frontRideHeightMm,
+        rearRideHeightMm: s.rearRideHeightMm,
+        cgHeightMm: s.cgHeightMm,
+        frontWeightPct: s.frontWeightPct,
       },
     };
     if (auto) {
@@ -225,12 +230,12 @@ function update(): void {
     }
   }
 
-  const m = compute(vehicle, s, ev ? { rackMm: ev.rackMm, heaveL: ev.heaveL, heaveR: ev.heaveR } : undefined);
+  const m = compute(vehicle, s, ev ? { rackMm: ev.rackMm, heaveL: ev.heaveL, heaveR: ev.heaveR, rear: ev.rear } : undefined);
   panel.setRange('steerWheelDeg', -Math.floor(m.maxSteerWheelDeg), Math.floor(m.maxSteerWheelDeg));
   view.update(m, ev);
   renderHud(m);
   driftEl.style.display = drift ? '' : 'none';
-  if (drift) renderDrift(ev, sol, auto);
+  if (drift) renderDrift(ev, sol, auto, m);
 }
 
 panel.onChange(() => {

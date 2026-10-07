@@ -54,7 +54,8 @@ export class TireCharts {
 
   private staticFz(): number {
     const c = this.cfg;
-    const share = this.axle === 'front' ? c.frontWeightPct : 100 - c.frontWeightPct;
+    const wf = this.getState().frontWeightPct;
+    const share = this.axle === 'front' ? wf : 100 - wf;
     return (c.mass * 9.81 * share) / 100 / 2;
   }
 

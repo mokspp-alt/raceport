@@ -441,13 +441,14 @@ export class FrontAxle {
   }
 }
 
-/** Заднее колесо: статические развал и схождение (схематично). */
-export function rearWheel(cfg: VehicleConfig, setup: RearSetup, side: Side): WheelGeom {
+/** Заднее колесо: развал и схождение (схематично); ход подвески — линейные развал-гейн и бамп-стир. */
+export function rearWheel(cfg: VehicleConfig, setup: RearSetup, side: Side, heaveMm = 0): WheelGeom {
   const R = tireRadius(cfg.tires.rear);
-  const gamma = setup.camberDeg * DEG;
-  const psi = -setup.toeDeg * DEG;
+  // ход подвески (+ сжатие): развал-гейн и бамп-стир задней оси — линейные коэффициенты из конфига
+  const gamma = (setup.camberDeg + cfg.rear.camberGainDegPer10mm * (heaveMm / 10)) * DEG;
+  const psi = -(setup.toeDeg + cfg.rear.bumpSteerDegPer10mm * (heaveMm / 10)) * DEG;
   const s = rotZ(rotX([0, 1, 0], -gamma), psi);
-  const wc: V3 = [-cfg.wheelbase, cfg.trackRear / 2, R * Math.cos(gamma)];
+  const wc: V3 = [-cfg.wheelbase, cfg.trackRear / 2, R * Math.cos(gamma) + heaveMm];
   const contact = contactPoint(wc, s, R);
   const { headingRad, camberRad } = wheelAngles(s);
   const ai = cfg.rear.armInner;

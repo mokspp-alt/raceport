@@ -14,6 +14,8 @@ export interface Computed {
   camberGainDegPer10mm: number;
   /** Угол руля, при котором упирается рейка/лимит колеса/мёртвая точка тяги. */
   limitReached: boolean;
+  /** Центр тяжести с учётом высоты подвески: x от передней оси (назад −), z от земли, мм. */
+  cg: { xMm: number; zMm: number };
 }
 
 export interface AxisCache {
@@ -61,6 +63,8 @@ export interface Overrides {
   rackMm: number;
   heaveL: number;
   heaveR: number;
+  /** Готовые задние колёса (с учётом высоты и крена). */
+  rear?: { L: WheelGeom; R: WheelGeom };
 }
 
 export function compute(cfg: VehicleConfig, s: State, ov?: Overrides): Computed {
@@ -69,11 +73,16 @@ export function compute(cfg: VehicleConfig, s: State, ov?: Overrides): Computed 
   const wantRack = s.steerWheelDeg * mm;
   const rack = ov ? ov.rackMm : Math.max(-a.maxRack, Math.min(a.maxRack, wantRack));
   const rearSetup = { toeDeg: s.rearToeDeg, camberDeg: s.rearCamberDeg };
+  const dF = s.frontRideHeightMm - cfg.rideHeight.frontRefMm;
+  const dR = s.rearRideHeightMm - cfg.rideHeight.rearRefMm;
+  const heaveStatic = s.heaveMm - dF; // + сжатие: ниже опорной высоты = в ходе сжатия
+  const wf = s.frontWeightPct / 100;
   return {
+    cg: { xMm: -(1 - wf) * cfg.wheelbase, zMm: s.cgHeightMm + wf * dF + (1 - wf) * dR },
     rackMm: rack,
     maxSteerWheelDeg: a.maxRack / mm,
-    front: { L: a.axis.wheel('L', rack, ov ? ov.heaveL : s.heaveMm), R: a.axis.wheel('R', rack, ov ? ov.heaveR : s.heaveMm) },
-    rear: { L: rearWheel(cfg, rearSetup, 'L'), R: rearWheel(cfg, rearSetup, 'R') },
+    front: { L: a.axis.wheel('L', rack, ov ? ov.heaveL : heaveStatic), R: a.axis.wheel('R', rack, ov ? ov.heaveR : heaveStatic) },
+    rear: ov?.rear ?? { L: rearWheel(cfg, rearSetup, 'L', -dR), R: rearWheel(cfg, rearSetup, 'R', -dR) },
     armPhiDeg: (a.axis.armPhi * 180) / Math.PI,
     ackermann: a.ackermann,
     bumpSteerDegPer10mm: a.bump,

@@ -69,7 +69,14 @@ export interface VehicleConfig {
   rear: {
     /** Схематичные точки рычагов сзади (для отрисовки), левая сторона. */
     armInner: { y: number; z: number; xFront: number; xRear: number };
+    /** Изменение развала заднего колеса при сжатии на 10 мм, град (− = в минус). */
+    camberGainDegPer10mm: number;
+    /** Изменение схождения заднего колеса при сжатии на 10 мм, град (+ = toe-in). */
+    bumpSteerDegPer10mm: number;
   };
+
+  /** Опорная высота подвески (клиренс), мм: при ней заданы развал, кастер и схождение. */
+  rideHeight: { frontRefMm: number; rearRefMm: number };
 
   dynamics: {
     /** Градиент крена кузова, град на 1 g поперечного ускорения. */
@@ -124,6 +131,13 @@ export const vehicle: VehicleConfig = {
 
   rear: {
     armInner: { y: 330, z: 170, xFront: 80, xRear: -160 }, // [предположение, только для отрисовки]
+    camberGainDegPer10mm: -0.2, // [предположение: многорычажная задняя подвеска S14]
+    bumpSteerDegPer10mm: 0.03, // [предположение: небольшой toe-in при сжатии]
+  },
+
+  rideHeight: {
+    frontRefMm: 120, // [предположение: замените измеренным клиренсом передка — значения «Высота» в панели задаются от него]
+    rearRefMm: 125, // [предположение]
   },
 
   dynamics: {
@@ -147,10 +161,15 @@ export const defaultSetup = {
   casterDeg: 7.0, // град [предположение]
   ackermannPct: 50, // % [предположение]
   frontPressureBar: 2.0, // бар [предположение]
+  frontRideHeightMm: vehicle.rideHeight.frontRefMm, // мм, опорная высота = при ней заданы углы
   // Задняя ось
   rearToeDeg: 0.2, // град на колесо [предположение]
   rearCamberDeg: -1.5, // град [предположение]
   rearPressureBar: 2.8, // бар [предположение]
+  rearRideHeightMm: vehicle.rideHeight.rearRefMm, // мм
+  // Масса и центр тяжести
+  cgHeightMm: vehicle.cgHeight, // мм, высота ЦТ при опорной высоте подвески [предположение]
+  frontWeightPct: vehicle.frontWeightPct, // % массы на переднюю ось (положение ЦТ по длине) [предположение]
   // Сценарий (используется на этапах 2–3)
   slipAngleDeg: 30, // град [предположение]
   speedKmh: 80, // км/ч [предположение]

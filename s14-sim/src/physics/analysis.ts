@@ -25,9 +25,13 @@ export const SETUP_KEYS = [
   'casterDeg',
   'ackermannPct',
   'frontPressureBar',
+  'frontRideHeightMm',
   'rearToeDeg',
   'rearCamberDeg',
   'rearPressureBar',
+  'rearRideHeightMm',
+  'cgHeightMm',
+  'frontWeightPct',
 ] as const satisfies readonly (keyof State)[];
 
 export type SetupKey = (typeof SETUP_KEYS)[number];
@@ -63,6 +67,10 @@ export function makeCtx(cfg: VehicleConfig, tireP: TireParams, s: State): DriftC
     rearPressureBar: s.rearPressureBar,
     rearToeDeg: s.rearToeDeg,
     rearCamberDeg: s.rearCamberDeg,
+    frontRideHeightMm: s.frontRideHeightMm,
+    rearRideHeightMm: s.rearRideHeightMm,
+    cgHeightMm: s.cgHeightMm,
+    frontWeightPct: s.frontWeightPct,
   };
   return { cfg, tireP, axis, input, maxRack };
 }
@@ -260,9 +268,13 @@ export const SENSITIVITY_DEFS: SensitivityDef[] = [
   { key: 'casterDeg', label: 'Кастер', unit: '°', step: 1 },
   { key: 'ackermannPct', label: 'Аккерман', unit: '%', step: 20 },
   { key: 'frontPressureBar', label: 'Давление (перед)', unit: 'бар', step: 0.2 },
+  { key: 'frontRideHeightMm', label: 'Высота подвески (перед)', unit: 'мм', step: 10 },
   { key: 'rearToeDeg', label: 'Схождение (зад)', unit: '°', step: 0.2 },
   { key: 'rearCamberDeg', label: 'Развал (зад)', unit: '°', step: 0.5 },
   { key: 'rearPressureBar', label: 'Давление (зад)', unit: 'бар', step: 0.3 },
+  { key: 'rearRideHeightMm', label: 'Высота подвески (зад)', unit: 'мм', step: 10 },
+  { key: 'cgHeightMm', label: 'Высота центра тяжести', unit: 'мм', step: 30 },
+  { key: 'frontWeightPct', label: 'Развесовка (перед)', unit: '%', step: 2 },
 ];
 
 export interface SensitivityRow extends SensitivityDef {

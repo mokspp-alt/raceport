@@ -12,6 +12,10 @@ const input = (o: Partial<DriftInput> = {}): DriftInput => ({
   rearPressureBar: defaultSetup.rearPressureBar,
   rearToeDeg: defaultSetup.rearToeDeg,
   rearCamberDeg: defaultSetup.rearCamberDeg,
+  frontRideHeightMm: defaultSetup.frontRideHeightMm,
+  rearRideHeightMm: defaultSetup.rearRideHeightMm,
+  cgHeightMm: defaultSetup.cgHeightMm,
+  frontWeightPct: defaultSetup.frontWeightPct,
   ...o,
 });
 
@@ -62,6 +66,29 @@ describe('установившийся занос', () => {
     expect(rr.Fz).toBeGreaterThan(rl.Fz);
     const sum = e.wheels.reduce((p, w) => p + w.Fz, 0);
     expect(sum).toBeCloseTo(vehicle.mass * 9.81, 0);
+  });
+
+  it('ниже ЦТ ⇒ меньше перенос веса на наружные колёса', () => {
+    const hi = solveSteady(ctxOf({ cgHeightMm: 560 })).eval!;
+    const lo = solveSteady(ctxOf({ cgHeightMm: 380 })).eval!;
+    const diff = (e: typeof hi) => e.wheels[1].Fz - e.wheels[0].Fz;
+    console.log('ΔFz перед при ЦТ 560/380:', diff(hi).toFixed(0), diff(lo).toFixed(0));
+    expect(diff(lo)).toBeLessThan(diff(hi));
+  });
+
+  it('развесовка: больше на перед ⇒ больше нагрузка на переднюю ось', () => {
+    const a = solveSteady(ctxOf({ frontWeightPct: 48 })).eval!;
+    const b = solveSteady(ctxOf({ frontWeightPct: 56 })).eval!;
+    const front = (e: typeof a) => e.wheels[0].Fz + e.wheels[1].Fz;
+    expect(front(b)).toBeGreaterThan(front(a));
+  });
+
+  it('высота подвески: ниже опорной ⇒ ЦТ ниже, развал перед уходит в минус (развал-гейн)', () => {
+    const ref = solveSteady(ctxOf()).eval!;
+    const low = solveSteady(ctxOf({ frontRideHeightMm: defaultSetup.frontRideHeightMm - 30, rearRideHeightMm: defaultSetup.rearRideHeightMm - 30 })).eval!;
+    console.log('развал ПП опорн/ниже 30:', ref.wheels[1].gammaDeg.toFixed(2), low.wheels[1].gammaDeg.toFixed(2));
+    expect(low.front.L.camberDeg).toBeLessThan(ref.front.L.camberDeg);
+    expect(low.rear.L.camberDeg).toBeLessThan(ref.rear.L.camberDeg);
   });
 
   it('больше газа ⇒ меньше боковой силы сзади (круг трения)', () => {

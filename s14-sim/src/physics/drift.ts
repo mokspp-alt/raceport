@@ -56,6 +56,13 @@ export interface DriftInput {
   rearPressureBar: number;
   rearToeDeg: number;
   rearCamberDeg: number;
+  /** Высота подвески (клиренс), мм; опорная высота — в cfg.rideHeight. */
+  frontRideHeightMm: number;
+  rearRideHeightMm: number;
+  /** Высота центра тяжести при опорной высоте подвески, мм. */
+  cgHeightMm: number;
+  /** Доля массы на передней оси, % (положение ЦТ по длине). */
+  frontWeightPct: number;
 }
 
 export interface DriftCtx {
@@ -134,10 +141,13 @@ export function evaluate(ctx: DriftCtx, rackMm: number, r: number, withSteer = t
   const { cfg, tireP, axis, input } = ctx;
   const m = cfg.mass;
   const L = cfg.wheelbase / 1000;
-  const wf = cfg.frontWeightPct / 100;
+  const wf = input.frontWeightPct / 100;
   const a = (1 - wf) * L; // CG → передняя ось
   const b = wf * L; // CG → задняя ось
-  const hcg = cfg.cgHeight / 1000;
+  // высота подвески: ниже опорной ⇒ колёса в ходе сжатия на Δ, центр масс ниже
+  const dF = input.frontRideHeightMm - cfg.rideHeight.frontRefMm; // мм, − = ниже
+  const dR = input.rearRideHeightMm - cfg.rideHeight.rearRefMm;
+  const hcg = (input.cgHeightMm + wf * dF + (1 - wf) * dR) / 1000;
   const s = input.slipAngleDeg * DEG;
   const V = input.speedKmh / 3.6;
 
@@ -163,13 +173,15 @@ export function evaluate(ctx: DriftCtx, rackMm: number, r: number, withSteer = t
   };
 
   // кинематика: ход колёс от крена (наружное — правое — сжимается)
-  const heaveR = rollRad * (cfg.trackFront / 2);
-  const heaveL = -heaveR;
+  const rollHeaveF = rollRad * (cfg.trackFront / 2);
+  const heaveR = rollHeaveF - dF;
+  const heaveL = -rollHeaveF - dF;
   const fL = axis.wheel('L', rackMm, heaveL);
   const fR = axis.wheel('R', rackMm, heaveR);
   const rearSetup = { toeDeg: input.rearToeDeg, camberDeg: input.rearCamberDeg };
-  const rL = rearWheel(cfg, rearSetup, 'L');
-  const rR = rearWheel(cfg, rearSetup, 'R');
+  const rollHeaveR = rollRad * (cfg.trackRear / 2);
+  const rL = rearWheel(cfg, rearSetup, 'L', -rollHeaveR - dR);
+  const rR = rearWheel(cfg, rearSetup, 'R', rollHeaveR - dR);
 
   // развал относительно дороги: крен наклоняет внутреннее колесо в минус, наружное — в плюс
   const camberG = {

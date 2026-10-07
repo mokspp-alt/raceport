@@ -74,7 +74,8 @@ class WheelView {
       m.position.copy(t3(w.p.wc));
       m.quaternion.copy(q);
     }
-    this.patch.position.copy(t3(w.p.contact)).setY(0.003);
+    this.patch.position.copy(t3(w.p.contact));
+    this.patch.position.y += 0.003;
     this.patch.rotation.set(0, (w.headingDeg * Math.PI) / 180, 0);
   }
 }
@@ -170,6 +171,7 @@ export class SuspensionScene {
   private rearViews: { L: RearSideView; R: RearSideView };
   private rackHousing: Link;
   private rackBar: Link;
+  private cgMarker!: THREE.Group;
   private forceArrows: THREE.ArrowHelper[] = [];
   private velArrows: THREE.ArrowHelper[] = [];
 
@@ -217,6 +219,14 @@ export class SuspensionScene {
       this.forceArrows.push(fa);
       this.velArrows.push(va);
     }
+
+    // центр тяжести: шар с «прицелом» и линия на землю
+    this.cgMarker = new THREE.Group();
+    const sph = new THREE.Mesh(new THREE.SphereGeometry(0.05, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffd34d }));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.006, 8, 32), new THREE.MeshBasicMaterial({ color: 0xffd34d }));
+    ring.rotation.x = Math.PI / 2;
+    this.cgMarker.add(sph, ring);
+    this.scene.add(this.cgMarker);
 
     this.setCamera('front-left');
     new ResizeObserver(() => this.resize()).observe(container);
@@ -305,6 +315,7 @@ export class SuspensionScene {
 
   update(m: Computed, ev: Eval | null = null): void {
     this.updateArrows(ev);
+    this.cgMarker.position.set(m.cg.xMm / 1000, m.cg.zMm / 1000, 0);
     this.wheels.FL.set(m.front.L);
     this.wheels.FR.set(m.front.R);
     this.wheels.RL.set(m.rear.L);
