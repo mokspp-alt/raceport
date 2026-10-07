@@ -101,3 +101,13 @@ describe('пневматический трейл и момент', () => {
     expect(T({ alpha: 7 * DEG }).trail).toBeCloseTo(T({ alpha: -7 * DEG }).trail, 9);
   });
 });
+
+describe('ограничение тяги сцеплением', () => {
+  it('fxCap ограничивает продольную силу и оставляет боковую', () => {
+    const a = 8 * DEG;
+    const o = T({ alpha: a, Fx: 5 * 4000, fxCap: 0.85 });
+    const free = T({ alpha: a });
+    expect(o.FxApplied).toBeCloseTo(0.85 * free.mu * 4000, 3);
+    expect(o.Fy).toBeCloseTo(free.Fy * Math.sqrt(1 - 0.85 ** 2), 3);
+  });
+});

@@ -78,6 +78,8 @@ export interface VehicleConfig {
     latTransferFrontPct: number;
     /** Тяговое усилие на задних колёсах при газе 100 %, Н. */
     maxTractionN: number;
+    /** Предельная доля сцепления задней шины (μ·Fz), которую можно потратить на тягу; остальное — пробуксовка. */
+    maxRearLongShare: number;
   };
 
   steering: {
@@ -128,6 +130,7 @@ export const vehicle: VehicleConfig = {
     rollGradientDegPerG: 1.2, // [предположение: жёсткая дрифт-подвеска]
     latTransferFrontPct: 55, // [предположение]
     maxTractionN: 8000, // [предположение: ≈ тяга S14 с ~400 л.с. на 2–3 передаче, ограничена сцеплением]
+    maxRearLongShare: 0.85, // [предположение: сверх этой доли тяга превращается в пробуксовку, боковая сила остаётся ≥ 53 % от μFz]
   },
 
   steering: {

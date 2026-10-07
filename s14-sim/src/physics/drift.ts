@@ -18,6 +18,7 @@
  *  `latTransferFrontPct`. Крен φ = градиент · a_y/g меняет ход колёс (±φ·колея/2) и развал.
  *
  *  Задние колёса: суммарная тяга Fx = газ · maxTractionN, делится по нагрузке (заваренный диф);
+ *  на колесо тяга ограничена долей maxRearLongShare от μ·Fz (избыток — пробуксовка, не тяга);
  *  боковая сила ограничивается кругом трения (см. tire.ts). Передние колёса свободно катятся (Fx=0).
  *
  *  Неизвестные: смещение рейки x (руль) и угловая скорость r. Уравнения:
@@ -202,10 +203,19 @@ export function evaluate(ctx: DriftCtx, rackMm: number, r: number, withSteer = t
     const tw = w.front ? cfg.tires.front : cfg.tires.rear;
     const p = w.front ? input.frontPressureBar : input.rearPressureBar;
     const gamma = w.side * camberG[w.id] * DEG; // наклон в сторону +Y
-    const t = tire(tireP, { alpha, Fz: Fz[w.id], gammaInc: gamma, pressureBar: p, Fx, widthMm: tw.width });
+    const t = tire(tireP, {
+      alpha,
+      Fz: Fz[w.id],
+      gammaInc: gamma,
+      pressureBar: p,
+      Fx,
+      widthMm: tw.width,
+      fxCap: w.front ? 1 : cfg.dynamics.maxRearLongShare,
+    });
+    const FxA = t.FxApplied;
     // вектор силы в осях кузова: Fx вдоль курса колеса, Fy влево от курса
-    const fxb = Fx * Math.cos(psi) - t.Fy * Math.sin(psi);
-    const fyb = Fx * Math.sin(psi) + t.Fy * Math.cos(psi);
+    const fxb = FxA * Math.cos(psi) - t.Fy * Math.sin(psi);
+    const fyb = FxA * Math.sin(psi) + t.Fy * Math.cos(psi);
     Fsum = [Fsum[0] + fxb, Fsum[1] + fyb];
     Mz += w.x * fyb - w.y * fxb + t.Mz;
     Fvec[w.id] = [fxb, fyb, Fz[w.id]];
@@ -217,13 +227,13 @@ export function evaluate(ctx: DriftCtx, rackMm: number, r: number, withSteer = t
       gammaDeg: gamma / DEG,
       headingDeg: w.geom.headingDeg,
       velAngleDeg: theta / DEG,
-      Fx,
+      Fx: FxA,
       Fy: t.Fy,
       Fbody: [fxb, fyb],
       pneuTrailMm: t.trail * 1000,
       Mz: t.Mz,
       mu: t.mu,
-      gripUse: Math.hypot(Fx, t.Fy) / (t.mu * Fz[w.id]),
+      gripUse: Math.hypot(FxA, t.Fy) / (t.mu * Fz[w.id]),
       contact: w.geom.p.contact,
       velDir: [vx / vl, vy / vl],
     });

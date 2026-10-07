@@ -48,10 +48,14 @@ export interface TireInput {
   Fx?: number;
   /** Ширина шины, мм. */
   widthMm: number;
+  /** Предельная доля μ·Fz для продольной силы (0…1); избыток тяги — пробуксовка. По умолчанию 1. */
+  fxCap?: number;
 }
 
 export interface TireOutput {
   Fy: number; // Н
+  /** Реально приложенная продольная сила, Н (после ограничения сцеплением). */
+  FxApplied: number;
   /** Пневматический трейл, м (+ позади центра пятна). */
   trail: number;
   /** Момент самовыравнивания, Н·м. */
@@ -96,7 +100,8 @@ export function tire(p: TireParams, i: TireInput): TireOutput {
   const Fy0 = D * Math.sin(p.Cy * Math.atan(x - p.Ey * (x - Math.atan(x))));
 
   const Fx = i.Fx ?? 0;
-  const ratio = Math.min(1, Math.abs(Fx) / (p.muXRatio * D));
+  const ratio = Math.min(i.fxCap ?? 1, Math.abs(Fx) / (p.muXRatio * D));
+  const FxApplied = Math.sign(Fx) * ratio * p.muXRatio * D;
   const ell = Math.sqrt(1 - ratio * ratio);
   const Fy = Fy0 * ell;
 
@@ -106,5 +111,5 @@ export function tire(p: TireParams, i: TireInput): TireOutput {
   const u = p.trailBu * (alphaE / alphaSl);
   const trail = t0 * Math.cos(p.trailCt * Math.atan(u - p.trailEt * (u - Math.atan(u)))) * Math.cos(i.alpha);
 
-  return { Fy, trail, Mz: -trail * Fy, Calpha, mu, patchLength: l, trail0: t0, alphaSl, FyMax: D * ell };
+  return { Fy, FxApplied, trail, Mz: -trail * Fy, Calpha, mu, patchLength: l, trail0: t0, alphaSl, FyMax: D * ell };
 }
