@@ -9,6 +9,7 @@ import type { VehicleConfig } from '../config/vehicle';
 import type { V3 } from '../physics/math';
 import type { WheelGeom } from '../physics/kinematics';
 import type { Computed } from '../physics/model';
+import type { Eval } from '../physics/drift';
 
 const t3 = (v: V3): THREE.Vector3 => new THREE.Vector3(v[0] / 1000, v[2] / 1000, -v[1] / 1000);
 
@@ -169,6 +170,8 @@ export class SuspensionScene {
   private rearViews: { L: RearSideView; R: RearSideView };
   private rackHousing: Link;
   private rackBar: Link;
+  private forceArrows: THREE.ArrowHelper[] = [];
+  private velArrows: THREE.ArrowHelper[] = [];
 
   constructor(private container: HTMLElement, private cfg: VehicleConfig) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -205,6 +208,15 @@ export class SuspensionScene {
     this.rearViews = { L: new RearSideView(this.root), R: new RearSideView(this.root) };
     this.rackHousing = new Link(this.root, 0.026, 0x3a4352);
     this.rackBar = new Link(this.root, 0.012, 0xe0e6ef);
+
+    for (let i = 0; i < 4; i++) {
+      const fa = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 0.5, 0xe66767, 0.08, 0.05);
+      const va = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 0.5, 0x1fc28b, 0.08, 0.05);
+      fa.visible = va.visible = false;
+      this.root.add(fa, va);
+      this.forceArrows.push(fa);
+      this.velArrows.push(va);
+    }
 
     this.setCamera('front-left');
     new ResizeObserver(() => this.resize()).observe(container);
@@ -264,7 +276,35 @@ export class SuspensionScene {
     this.controls.update();
   }
 
-  update(m: Computed): void {
+  /** Стрелки: сила шины (красная) и направление скольжения колеса (зелёная). */
+  private updateArrows(ev: Eval | null): void {
+    const order = ['FL', 'FR', 'RL', 'RR'];
+    for (let i = 0; i < 4; i++) {
+      const fa = this.forceArrows[i];
+      const va = this.velArrows[i];
+      const w = ev?.wheels.find((x) => x.id === order[i]);
+      if (!w) {
+        fa.visible = va.visible = false;
+        continue;
+      }
+      const o = t3(w.contact);
+      o.y = 0.01;
+      const fl = Math.hypot(w.Fbody[0], w.Fbody[1]);
+      fa.visible = fl > 1;
+      if (fa.visible) {
+        fa.position.copy(o);
+        fa.setDirection(new THREE.Vector3(w.Fbody[0], 0, -w.Fbody[1]).normalize());
+        fa.setLength(Math.max(0.12, fl / 5000), 0.09, 0.05);
+      }
+      va.visible = true;
+      va.position.copy(o).setY(0.02);
+      va.setDirection(new THREE.Vector3(w.velDir[0], 0, -w.velDir[1]).normalize());
+      va.setLength(0.55, 0.09, 0.05);
+    }
+  }
+
+  update(m: Computed, ev: Eval | null = null): void {
+    this.updateArrows(ev);
     this.wheels.FL.set(m.front.L);
     this.wheels.FR.set(m.front.R);
     this.wheels.RL.set(m.rear.L);

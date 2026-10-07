@@ -16,7 +16,7 @@ export interface Computed {
   limitReached: boolean;
 }
 
-interface AxisCache {
+export interface AxisCache {
   key: string;
   axis: FrontAxle;
   maxRack: number;
@@ -52,21 +52,32 @@ function axisFor(cfg: VehicleConfig, s: State): AxisCache {
   return cache;
 }
 
-export function compute(cfg: VehicleConfig, s: State): Computed {
+/** Ось и предрасчитанные величины для текущих настроек (кэшируется). */
+export function getAxis(cfg: VehicleConfig, s: State): AxisCache {
+  return axisFor(cfg, s);
+}
+
+export interface Overrides {
+  rackMm: number;
+  heaveL: number;
+  heaveR: number;
+}
+
+export function compute(cfg: VehicleConfig, s: State, ov?: Overrides): Computed {
   const a = axisFor(cfg, s);
   const mm = cfg.front.rackMmPerSteeringDeg;
   const wantRack = s.steerWheelDeg * mm;
-  const rack = Math.max(-a.maxRack, Math.min(a.maxRack, wantRack));
+  const rack = ov ? ov.rackMm : Math.max(-a.maxRack, Math.min(a.maxRack, wantRack));
   const rearSetup = { toeDeg: s.rearToeDeg, camberDeg: s.rearCamberDeg };
   return {
     rackMm: rack,
     maxSteerWheelDeg: a.maxRack / mm,
-    front: { L: a.axis.wheel('L', rack, s.heaveMm), R: a.axis.wheel('R', rack, s.heaveMm) },
+    front: { L: a.axis.wheel('L', rack, ov ? ov.heaveL : s.heaveMm), R: a.axis.wheel('R', rack, ov ? ov.heaveR : s.heaveMm) },
     rear: { L: rearWheel(cfg, rearSetup, 'L'), R: rearWheel(cfg, rearSetup, 'R') },
     armPhiDeg: (a.axis.armPhi * 180) / Math.PI,
     ackermann: a.ackermann,
     bumpSteerDegPer10mm: a.bump,
     camberGainDegPer10mm: a.camberGain,
-    limitReached: Math.abs(wantRack) > a.maxRack + 1e-9,
+    limitReached: !ov && Math.abs(wantRack) > a.maxRack + 1e-9,
   };
 }

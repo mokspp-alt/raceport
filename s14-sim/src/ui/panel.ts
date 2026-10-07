@@ -36,6 +36,15 @@ export class Panel {
     for (const l of this.listeners) l();
   }
 
+  /** Установить значение программно, без оповещения подписчиков. */
+  setValue(key: keyof State, v: number): void {
+    this.state[key] = v;
+    const i = this.inputs.get(key);
+    if (!i) return;
+    i.range.value = String(v);
+    i.num.value = String(Math.round(v * 100) / 100);
+  }
+
   /** Обновить границы слайдера (например, ход руля зависит от геометрии). */
   setRange(key: keyof State, min: number, max: number): void {
     const i = this.inputs.get(key);

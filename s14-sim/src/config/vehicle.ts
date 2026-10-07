@@ -70,6 +70,20 @@ export interface VehicleConfig {
     /** Схематичные точки рычагов сзади (для отрисовки), левая сторона. */
     armInner: { y: number; z: number; xFront: number; xRear: number };
   };
+
+  dynamics: {
+    /** Градиент крена кузова, град на 1 g поперечного ускорения. */
+    rollGradientDegPerG: number;
+    /** Доля поперечного переноса веса, приходящаяся на переднюю ось (по жёсткости на крен), %. */
+    latTransferFrontPct: number;
+    /** Тяговое усилие на задних колёсах при газе 100 %, Н. */
+    maxTractionN: number;
+  };
+
+  steering: {
+    /** Доля момента от дороги, которую снимает ГУР (0 = без усилителя), 0…1. */
+    assistFraction: number;
+  };
 }
 
 export const vehicle: VehicleConfig = {
@@ -108,6 +122,16 @@ export const vehicle: VehicleConfig = {
 
   rear: {
     armInner: { y: 330, z: 170, xFront: 80, xRear: -160 }, // [предположение, только для отрисовки]
+  },
+
+  dynamics: {
+    rollGradientDegPerG: 1.2, // [предположение: жёсткая дрифт-подвеска]
+    latTransferFrontPct: 55, // [предположение]
+    maxTractionN: 8000, // [предположение: ≈ тяга S14 с ~400 л.с. на 2–3 передаче, ограничена сцеплением]
+  },
+
+  steering: {
+    assistFraction: 0.7, // [предположение: ГУР снимает ~70 % нагрузки; зависит от насоса и торсиона]
   },
 };
 
