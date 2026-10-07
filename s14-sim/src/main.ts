@@ -29,8 +29,24 @@ const analysisCharts = new AnalysisCharts(
 );
 new SensitivityView(document.getElementById('pane-sens')!, vehicle, () => panel.state);
 
+const chartsEl = document.getElementById('charts')!;
+const foldBtn = document.getElementById('fold-charts')!;
+function setChartsFolded(f: boolean): void {
+  chartsEl.classList.toggle('folded', f);
+  foldBtn.textContent = f ? '▸ Показать графики' : '▾ Свернуть графики';
+  window.dispatchEvent(new Event('resize'));
+}
+foldBtn.onclick = () => setChartsFolded(!chartsEl.classList.contains('folded'));
+setChartsFolded(window.innerHeight < 900); // на невысоких экранах графики свёрнуты, чтобы хватало места под 3D
+for (const el of [driftEl, balanceEl]) {
+  el.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('h3')) el.classList.toggle('folded');
+  });
+}
+
 document.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => {
   b.onclick = () => {
+    if (chartsEl.classList.contains('folded')) setChartsFolded(false);
     document.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
     for (const id of ['main', 'tire', 'sens']) document.getElementById('pane-' + id)!.hidden = id !== b.dataset.tab;
     if (b.dataset.tab === 'tire') tireCharts.update();

@@ -53,7 +53,7 @@ button.on { background: var(--accent); color: #05101f; border-color: var(--accen
 .legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 
 .tog { display: inline-flex; align-items: center; gap: 5px; background: #1d2530; border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; cursor: pointer; }
-#drift { position: absolute; bottom: 10px; left: 10px; width: 360px; background: rgba(21,26,34,.9); border: 1px solid var(--line);
+#drift { position: absolute; bottom: 10px; left: 10px; width: 360px; max-height: calc(100% - 62px); overflow-y: auto; background: rgba(21,26,34,.9); border: 1px solid var(--line);
   border-radius: 8px; padding: 8px 10px; font-size: 12px; backdrop-filter: blur(4px); }
 #drift h3 { margin: 0 0 4px; font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; }
 #drift table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -82,3 +82,11 @@ button.on { background: var(--accent); color: #05101f; border-color: var(--accen
 .sens th.l, .sens td.l { text-align: left; }
 .sens td.bar { width: 160px; } .sens td.bar i { display: block; height: 8px; background: var(--accent); border-radius: 0 3px 3px 0; }
 .sens p { margin: 4px 0; }
+
+/* сворачиваемые панели */
+#drift h3, #balance h3 { cursor: pointer; user-select: none; }
+#drift h3::before, #balance h3::before { content: '▾ '; }
+#drift.folded h3::before, #balance.folded h3::before { content: '▸ '; }
+#drift.folded > :not(h3), #balance.folded > :not(h3) { display: none; }
+.tabs .spacer { flex: 1; }
+#charts.folded .pane { display: none; }
