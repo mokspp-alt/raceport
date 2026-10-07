@@ -43,7 +43,7 @@ import type { VehicleConfig } from '../config/vehicle';
 import type { TireParams } from '../config/tire';
 import { tire } from './tire';
 import { FrontAxle, rearWheel, type WheelGeom } from './kinematics';
-import { DEG, V3, bisect, cross, dot, mul, sub, unit } from './math';
+import { DEG, V3, bisect, cross, dot, illinois, mul, sub, unit } from './math';
 
 const G = 9.81;
 
@@ -277,7 +277,7 @@ export function solveYaw(ctx: DriftCtx, rackMm: number): number | null {
   const f = (r: number) => evaluate(ctx, rackMm, r, false).resid;
   const hi = 3.5;
   if (f(0) <= 0 || f(hi) >= 0) return null;
-  return bisect(f, 0, hi, 1e-4);
+  return illinois(f, 0, hi, 1e-3);
 }
 
 export interface SteadyResult {
@@ -338,4 +338,44 @@ export function solveSteady(ctx: DriftCtx): SteadyResult {
 export function evalAtRack(ctx: DriftCtx, rackMm: number): Eval | null {
   const r = solveYaw(ctx, rackMm);
   return r === null ? null : evaluate(ctx, rackMm, r);
+}
+
+/**
+ * Локальный поиск равновесия рядом с заданной рейкой (для непрерывного перебора по углу заноса).
+ * Если рядом корня нет — полный поиск.
+ */
+export function solveSteadyNear(ctx: DriftCtx, guessRack: number): SteadyResult {
+  const M = ctx.maxRack;
+  const mmPerDeg = ctx.cfg.front.rackMmPerSteeringDeg;
+  const mz = (x: number): number => {
+    const r = solveYaw(ctx, x);
+    return r === null ? NaN : evaluate(ctx, x, r, false).MzTotal;
+  };
+  const x0 = Math.max(-M, Math.min(M, guessRack));
+  const g0 = mz(x0);
+  const step = 3;
+  let bracket: [number, number] | null = null;
+  if (Number.isFinite(g0)) {
+    let pr = x0;
+    let pl = x0;
+    let gr = g0;
+    let gl = g0;
+    for (let k = 1; k <= 30 && !bracket; k++) {
+      const xr = Math.min(M, x0 + k * step);
+      const xl = Math.max(-M, x0 - k * step);
+      const vr = xr > pr ? mz(xr) : NaN;
+      if (Number.isFinite(vr) && Math.sign(vr) !== Math.sign(gr)) bracket = [pr, xr];
+      else if (Number.isFinite(vr)) { pr = xr; gr = vr; }
+      if (bracket) break;
+      const vl = xl < pl ? mz(xl) : NaN;
+      if (Number.isFinite(vl) && Math.sign(vl) !== Math.sign(gl)) bracket = [xl, pl];
+      else if (Number.isFinite(vl)) { pl = xl; gl = vl; }
+    }
+  }
+  if (!bracket) return solveSteady(ctx);
+  const x = illinois((v) => mz(v), bracket[0], bracket[1], 1e-2, 30);
+  const dirSign = Math.sign(ctx.input.slipAngleDeg) || 1;
+  if (Math.sign(x) !== -dirSign && Math.abs(x) > 3) return solveSteady(ctx); // не контрруль — перепроверяем полностью
+  const r = solveYaw(ctx, x) ?? 0;
+  return { ok: true, rackMm: x, steerWheelDeg: x / mmPerDeg, roots: [x], eval: evaluate(ctx, x, r) };
 }

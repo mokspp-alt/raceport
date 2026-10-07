@@ -29,7 +29,8 @@ main { min-width: 0; display: grid; grid-template-rows: 1fr auto; height: 100vh;
 #view { position: absolute; inset: 0; }
 #view canvas { display: block; width: 100%; height: 100%; }
 #cams { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; }
-#hud { position: absolute; top: 10px; right: 10px; width: 330px; background: rgba(21,26,34,.88); border: 1px solid var(--line);
+#rightcol { position: absolute; top: 10px; right: 10px; width: 340px; display: flex; flex-direction: column; gap: 8px; max-height: calc(100% - 20px); overflow-y: auto; }
+#hud { width: 100%; background: rgba(21,26,34,.88); border: 1px solid var(--line);
   border-radius: 8px; padding: 8px 10px; font-size: 12px; backdrop-filter: blur(4px); }
 #hud table { width: 100%; border-collapse: collapse; }
 #hud th { text-align: left; font-weight: 400; color: var(--muted); padding: 1px 0; }
@@ -61,3 +62,23 @@ button.on { background: var(--accent); color: #05101f; border-color: var(--accen
 #drift td.h { color: var(--muted); }
 #drift p { margin: 6px 0 0; }
 #drift .verdict { font-weight: 600; }
+
+#balance { background: rgba(21,26,34,.92); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; backdrop-filter: blur(4px); }
+#balance h3 { margin: 0 0 4px; font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; }
+#balance .big { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#balance p { margin: 5px 0 0; }
+#balance .good { color: #35c48f; } #balance .bad { color: var(--warn); }
+#balance svg { width: 100%; height: 46px; display: block; margin-top: 4px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 4px; }
+.pane[hidden] { display: none; }
+.chartgrid.four { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1400px) { .chartgrid.four { grid-template-columns: repeat(2, 1fr); } }
+.chartstatus { font-size: 11px; color: var(--muted); margin-bottom: 2px; min-height: 14px; }
+.presets { display: flex; flex-direction: column; gap: 6px; } .presets button { padding: 3px 9px; }
+.cmp { margin-top: 8px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; } .cmp label { display: inline-flex; gap: 3px; align-items: center; }
+.sens { overflow: auto; max-height: 240px; font-size: 12px; }
+.sens table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.sens th, .sens td { padding: 2px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.sens th.l, .sens td.l { text-align: left; }
+.sens td.bar { width: 160px; } .sens td.bar i { display: block; height: 8px; background: var(--accent); border-radius: 0 3px 3px 0; }
+.sens p { margin: 4px 0; }

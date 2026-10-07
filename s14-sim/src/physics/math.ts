@@ -67,3 +67,31 @@ export function bisect(f: (x: number) => number, lo: number, hi: number, tol = 1
   }
   return 0.5 * (lo + hi);
 }
+
+/**
+ * Метод Иллинойса (регула фальси с поправкой) на [lo, hi]; f(lo), f(hi) разных знаков.
+ * Сходится заметно быстрее бисекции на гладких функциях.
+ */
+export function illinois(f: (x: number) => number, lo: number, hi: number, tol = 1e-8, maxIter = 40): number {
+  let fl = f(lo);
+  let fh = f(hi);
+  let side = 0;
+  let x = lo;
+  for (let i = 0; i < maxIter; i++) {
+    x = (fl * hi - fh * lo) / (fl - fh);
+    const fx = f(x);
+    if (Math.abs(fx) < tol || Math.abs(hi - lo) < tol) return x;
+    if (Math.sign(fx) * Math.sign(fh) > 0) {
+      hi = x;
+      fh = fx;
+      if (side === -1) fl *= 0.5;
+      side = -1;
+    } else {
+      lo = x;
+      fl = fx;
+      if (side === 1) fh *= 0.5;
+      side = 1;
+    }
+  }
+  return x;
+}

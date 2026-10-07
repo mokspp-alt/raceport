@@ -6,7 +6,7 @@
     <title>S14 Drift Suspension Lab</title>
   </head>
   <body>
-    <aside id="panel"><h1>S14 · Wisefab V2<small>обучающий симулятор подвески — этап 3: установившийся занос и момент на руле</small></h1></aside>
+    <aside id="panel"><h1>S14 · Wisefab V2<small>обучающий симулятор подвески — этап 4: графики, баланс руля, чувствительность</small></h1></aside>
     <main>
       <div id="stage"><div id="view"></div>
       <div id="cams">
@@ -17,10 +17,19 @@
         <label class="tog"><input type="checkbox" id="mode-drift" checked /> Занос</label>
         <label class="tog"><input type="checkbox" id="mode-auto" checked /> Авто-контрруль</label>
       </div>
-      <div id="hud"></div>
+      <div id="rightcol"><div id="hud"></div><div id="balance"></div></div>
       <div id="drift"></div>
       </div>
-      <div id="charts"></div>
+      <div id="charts">
+        <div class="tabs">
+          <button data-tab="main" class="on">Руль и занос</button>
+          <button data-tab="tire">Шина</button>
+          <button data-tab="sens">Чувствительность</button>
+        </div>
+        <div class="pane" id="pane-main"></div>
+        <div class="pane" id="pane-tire" hidden></div>
+        <div class="pane" id="pane-sens" hidden></div>
+      </div>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

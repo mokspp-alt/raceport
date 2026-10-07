@@ -8,6 +8,14 @@ export interface Series {
   pts: [number, number][];
 }
 
+export interface ChartPoint {
+  x: number;
+  y: number;
+  color: string;
+  /** Подпись рядом с точкой. */
+  label?: string;
+}
+
 export interface ChartOpts {
   title: string;
   xLabel: string;
@@ -30,6 +38,7 @@ export class LineChart {
   readonly legend = document.createElement('div');
   readonly el = document.createElement('figure');
   private series: Series[] = [];
+  private points: ChartPoint[] = [];
   private hoverX: number | null = null;
   private bounds = { x0: 0, x1: 1, y0: 0, y1: 1 };
   private pad = { l: 56, r: 10, t: 8, b: 30 };
@@ -59,8 +68,9 @@ export class LineChart {
     this.opts.xMarker = x;
   }
 
-  update(series: Series[]): void {
+  update(series: Series[], points: ChartPoint[] = []): void {
     this.series = series;
+    this.points = points;
     this.legend.innerHTML = series
       .map((s) => `<span><i style="background:${s.color}"></i>${s.name}</span>`)
       .join('');
@@ -84,7 +94,7 @@ export class LineChart {
     const line = css('--line', '#262d39');
     const text = css('--text', '#dbe3ee');
     const { l, r, t, b } = this.pad;
-    const all = this.series.flatMap((s) => s.pts);
+    const all = this.series.flatMap((s) => s.pts).filter((p) => Number.isFinite(p[1]));
     if (!all.length) return;
     let x0 = Math.min(...all.map((p) => p[0]));
     let x1 = Math.max(...all.map((p) => p[0]));
@@ -156,10 +166,36 @@ export class LineChart {
       g.lineJoin = 'round';
       g.setLineDash(s.dash ?? []);
       g.beginPath();
-      s.pts.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))));
+      let pen = false;
+      for (const p of s.pts) {
+        if (!Number.isFinite(p[1])) {
+          pen = false;
+          continue;
+        }
+        if (pen) g.lineTo(X(p[0]), Y(p[1]));
+        else g.moveTo(X(p[0]), Y(p[1]));
+        pen = true;
+      }
       g.stroke();
     }
     g.restore();
+    // отдельные точки (нулевой момент, равновесие, ...)
+    for (const p of this.points) {
+      if (p.x < x0 || p.x > x1) continue;
+      g.fillStyle = p.color;
+      g.strokeStyle = css('--panel', '#151a22');
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(X(p.x), Y(p.y), 5, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+      if (p.label) {
+        g.fillStyle = text;
+        g.textAlign = X(p.x) > W * 0.7 ? 'right' : 'left';
+        g.textBaseline = 'bottom';
+        g.fillText(p.label, X(p.x) + (X(p.x) > W * 0.7 ? -8 : 8), Y(p.y) - 6);
+      }
+    }
     g.setLineDash([]);
 
     // кроссхейр
@@ -173,7 +209,8 @@ export class LineChart {
       g.stroke();
       const rows = this.series.map((s) => {
         let best = s.pts[0];
-        for (const p of s.pts) if (Math.abs(p[0] - hx) < Math.abs(best[0] - hx)) best = p;
+        for (const p of s.pts) if (Number.isFinite(p[1]) && Math.abs(p[0] - hx) < Math.abs(best[0] - hx)) best = p;
+        if (!Number.isFinite(best[1])) return { s, v: NaN, x: best[0] };
         g.fillStyle = s.color;
         g.strokeStyle = css('--panel', '#151a22');
         g.lineWidth = 2;
@@ -183,7 +220,7 @@ export class LineChart {
         g.stroke();
         return { s, v: best[1], x: best[0] };
       });
-      const lines = [`${this.opts.xLabel.split(',')[0]}: ${rows[0]?.x.toFixed(1)}`, ...rows.map((r2) => `${r2.s.name}: ${+r2.v.toPrecision(4)}`)];
+      const lines = [`${this.opts.xLabel.split(',')[0]}: ${rows[0]?.x.toFixed(1)}`, ...rows.filter((r2) => Number.isFinite(r2.v)).map((r2) => `${r2.s.name}: ${+r2.v.toPrecision(4)}`)];
       const bw = Math.max(...lines.map((s) => g.measureText(s).width)) + 14;
       const bh = lines.length * 15 + 8;
       let bx = X(hx) + 10;
